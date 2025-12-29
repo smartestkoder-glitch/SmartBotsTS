@@ -1,0 +1,27 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Pages {
+  id       Int      @id @default(autoincrement())
+  time     DateTime @default(now())
+  marketMy Int
+  slots    Slots[]
+}
+
+model Slots {
+  id          Int     @id @default(autoincrement())
+  name        String
+  price       Int
+  course      Int
+  marketPrice Int
+  purpose     String?
+  dealer      String
+  page        Pages   @relation(fields: [pageId], references: [id])
+  pageId      Int
+}

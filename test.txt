@@ -1,0 +1,3716 @@
+
+
+
+const autoBuySettings = {
+    exp: {
+        lowPrice: 80000,
+        highPrice: 200000
+    }
+}
+
+export default autoBuySettings;
+
+const autoDMConfig = {
+    minCourseToBuy: 5000000
+}
+
+export default autoDMConfig
+const zapretPrefics = [
+    "АВТО-ИНВИз",
+]
+
+export default zapretPrefics
+import func from '../function.js';
+import window from '../window.js';
+
+import autoBuySettings from "../../Bots settings/autoBuy settings.js";
+
+const autoBuy = {
+    /**
+     * Функция для удобного представления предметов на аукционе
+     * @param {import('mineflayer').Bot} bot
+     * @returns {Promise<*>}
+     */
+    changeToSmartAh: async (bot) => {
+        let ahOld = bot.currentWindow.slots.slice(0, 46)
+        let ahNew = []
+
+        for (const slot of ahOld) {
+            ahNew.push({
+                slot: slot.slot,
+                item: slot.type,
+                count: slot.count,
+                price: Number(JSON.parse(bot.currentWindow.slots[0].nbt?.value?.display?.value?.Lore?.value?.value[3]).extra[2].text.replace(" ", "").replace("$", "").replace(",", ""))
+            })
+        }
+
+        return ahNew
+    },
+
+
+    buySlot: async (bot, slot) => {
+
+        window.click(bot, slot)
+        if (!await window.waitToChangeCountSlot(bot, 5000)) return false
+        else {
+            window.click(bot, 2)
+            await window.waitToChangeCountSlot(bot, 5000)
+        }
+
+    },
+
+    //openAhExp: async (bot) => {
+    //    bot.chat("/ah search опыт обычный")
+    //    if (!await window.waitToChangeCountSlot(bot, 5000)) return autoBuy.openAhExp(bot)
+    //},
+
+
+    findNicePrice: (bot, itemSettigs) => {
+        const ah = autoBuy.changeToSmartAh(bot)
+        return ah.find(item => item.price >= itemSettigs.lowPrice && item.price <= itemSettigs.highPrice)
+    },
+
+    /**
+     *
+     * @param {import('mineflayer').Bot} bot
+     * @returns {Promise<void>}
+     */
+    buyExp: async (bot) => {
+
+        bot.chat("/ah search опыт обычный")
+        await window.waitToChangeCountSlot(bot, 5000)
+
+        const ah = await autoBuy.changeToSmartAh(bot)
+
+        while (!autoBuy.findNicePrice(bot, autoBuySettings.exp))
+        {
+            await func.delay(2000)
+            window.click(bot, 49)
+        }
+        await func.delay(500)
+
+        await autoBuy.buySlot(bot, autoBuy.findNicePrice(bot, autoBuySettings.exp).slot)
+
+        await func.delay(1500)
+
+        bot.closeWindow(bot.currentWindow)
+
+        await func.delay(1500)
+
+    },
+
+    /**
+     *
+     * @param {import('mineflayer').Bot} bot
+     * @returns {Promise<void>}
+     */
+    buyAndCheckExp: async (bot) => {
+
+        while (bot.inventory.slots.find(item => item.name === "experience_bottle")) await autoBuy.buyExp(bot)
+
+    }
+}
+import func from "../../Bots utils/function.js"
+
+const autoClanInvest = {
+
+    moneyUpdateEvent: (bot) => {
+        bot._client.on("teams", (packet) => {
+            const money = Number(packet?.prefix?.value?.extra?.value?.value[4]?.text?.value)
+            if (!money) return
+            bot.smart.vars.money.balance = money
+
+        })
+    },
+
+    investIfHave: async (bot) => {
+        if (!bot.smart.vars.work) return
+        const minMoney = bot.smart.vars.default.minClanInvest
+        const money = bot.smart.vars.money.balance
+
+        if (money >= minMoney)  {
+            await func.delay(300)
+            bot.chat("/clan invest " + minMoney)
+            await func.delay(500)
+        }
+    }
+
+}
+
+export default autoClanInvest
+import func from '../function.js'
+import window from '../window.js'
+import inventory from '../inventory.js'
+import use from '../use.js'
+
+
+const eatID = {
+    cookedPorkchop: {
+        id: "cooked_porkchop",
+        restores: 8
+    }
+}
+
+const autoEat = {
+    /**
+     *
+     * @param {import('mineflayer').Bot} bot
+     * @returns {Promise<void>}
+     */
+    transferAndEat: async (bot) => {
+        if (!bot.smart.vars.work) return
+        await func.delay(300)
+
+        const slotFood = inventory.getSlotItem(bot.inventory.slots, eatID.cookedPorkchop.id)
+
+
+
+        if (!slotFood) return func.output(`Еда отсутствует в инвентаре!`, undefined, "red", "bold")
+
+        await inventory.equipHand(bot, slotFood)
+
+        await use.time(bot, 2300)
+        await func.delay(1000)
+
+        func.output(`Бот поел! Текущий голод у бота: ${bot.food}`, undefined, "green", "bold")
+        await func.delay(300)
+
+    },
+
+
+    checkFoodAndEat: async (bot, minFood = 10) => {
+        if (!bot.smart.vars.work) return
+
+        if (bot.food <= minFood) await autoEat.transferAndEat(bot)
+        //else return func.output(`Бот еще не достаточно проголодался! Текущий уровень голода: ${bot.food}`, undefined, "green", "bold")
+    }
+}
+
+export default autoEat
+import inventory from "../inventory.js";
+import effect from "../effects.js";
+import window from "../window.js";
+import item from '../item.js'
+import func from "../function.js"
+import use from "../use.js"
+import restart from "./restart.js";
+
+const autoInvisible = {
+    checkEffect: (bot) => {
+        if (!bot.smart.vars.work) return
+        const effInvis = effect.findEffect(bot, "Невидимость")
+        if (effInvis && effInvis.level === 2) return restart.default("Принудительный перезаход!")
+        return effInvis
+    },
+
+
+    findPotionInvisible: (bot) => {
+        if (!bot.smart.vars.work) return
+
+        const potion = inventory.getAllSlotsItem(bot.inventory.slots, "potion", 9, 44)
+        return potion?.find(pot => item.getEffectFromPotion(pot)?.find(eff => eff?.name?.includes("invisibility"))) || potion.find(el => el.name)
+
+    },
+    /**
+     * Найти и выпить инвиз
+     * @param {import('mineflayer').Bot} bot
+     */
+    transferAndDrinkInvis: async (bot) => {
+        if (!bot.smart.vars.work) return
+        await func.delay(300)
+
+        const countInvis = inventory.getCountItem(bot.inventory.slots, "potion")
+
+        if (countInvis < 10 && countInvis !== 0) func.output("Инвиз почти закончился! Осталось: " + countInvis + "шт", undefined, "red", "bold")
+
+        const invisSlot = autoInvisible.findPotionInvisible(bot)
+        if (invisSlot) {
+
+
+            await inventory.equipHand(bot, invisSlot)
+            await func.delay(200)
+            await use.time(bot, 2300)
+            await func.delay(200)
+
+            //func.output(`Выпил инвизочку(наверно) :). На боте инвиз на: ${effect.findEffect(bot, "Невидимость")?.duration} секундочек`, "АВТО-ИНВИЗ")
+
+        }
+        else {
+            //func.output("Инвиза нет в инвентаре!", "АВТО-ИНВИЗ")
+        }
+    },
+
+    drinkIfTime: async (bot, time) => {
+        await func.delay(100)
+
+        if (autoInvisible.checkEffect(bot)?.duration < time || !autoInvisible.checkEffect(bot)?.duration || !autoInvisible.checkEffect(bot)) {
+            await autoInvisible.transferAndDrinkInvis(bot)
+        }
+    }
+}
+
+export default autoInvisible
+import func from "../function.js"
+import move from "../move.js"
+
+const autoJump = {
+
+    autoJump: async (bot, kd, status) => {
+        if (!bot.smart.vars.work) return
+
+        if (bot.smart.vars.default.autoJump && status === false) bot.smart.vars.default.autoJump = false
+        else if (!bot.smart.vars.default.autoJump && status === true) bot.smart.vars.default.autoJump = true
+        else return
+        while (bot.smart.vars.default.autoJump) {
+            move.just.jump.start(bot)
+            await func.delay(300)
+            move.just.jump.stop(bot)
+
+            await func.delay(kd)
+        }
+    }
+
+}
+
+export default autoJump
+import func from "../function.js"
+import restart from "./restart.js";
+
+const autoLeave = {
+
+    getNicks: () => {
+        const txtNicks = func.readToProjectFile("autoLeave.txt")
+        const goodNicks = txtNicks.split("\n")
+
+        const newNicks = []
+
+        for (const nick of goodNicks) {
+            const nickS = nick.replace("\r", "").replace(" ", "").toLowerCase()
+            if (!nickS) continue
+            newNicks.push(nickS)
+        }
+        return newNicks
+    },
+
+    /**
+     *
+     * @param {import('mineflayer').Bot} bot
+     */
+    autoLeave: async (bot) => {
+        bot.on('entityMoved', async (entity) => {
+            if (entity.type === 'player' && entity.username !== bot.username) {
+                if (autoLeave.getNicks().includes(entity.username.toLowerCase())) return
+                const dx = entity.position.x - bot.entity.position.x
+                const dz = entity.position.z - bot.entity.position.z
+                const dy = entity.position.y - bot.entity.position.y
+                const distance = Math.sqrt(dx*dx + dy*dy + dz*dz)
+
+                if (distance < 200) {
+                    await restart.default(bot,`Рядом с ботом игрок! Ник: ${entity.username.toLowerCase()} Дистанция: ${distance.toFixed(1)} блоков`)
+                }
+            }
+        })
+    }
+
+}
+
+export default autoLeave
+import func from '../function.js'
+import window from '../window.js'
+import item from '../item.js'
+import inventory from "../inventory.js";
+
+const buyer =  {
+
+    /**
+     *
+     * @param {import('mineflayer').Bot} bot
+     * @param slot1
+     * @param item1
+     * @param slot2
+     * @param item2
+     */
+    sell: async (bot, slot1, item1, slot2, item2) => {
+        if (!bot.smart.vars.work) return
+
+        bot.chat("/buyer")
+        await window.waitToSlot(bot, slot1, item1)
+        window.click(bot, slot1)
+        await window.waitToSlot(bot, slot2, item2)
+        window.click(bot, slot2)
+        await func.delay(1000)
+        bot.closeWindow(bot.currentWindow)
+    },
+    /**
+     *
+     * @param {import('mineflayer').Bot} bot
+     * @param slot1
+     * @param item1
+     * @param slot2
+     * @param item2
+     * @param status
+     */
+    autobuyer: async (bot, slot1, item1, slot2, item2, status) => {
+        if (!bot.smart.vars.work) return
+
+        bot.chat("/buyer")
+        await window.waitToSlot(bot, slot1, item1)
+
+        window.click(bot, slot1)
+        await window.waitToSlot(bot, slot2, item2)
+        if (status && buyer.getAutoItem(bot.currentWindow.slots[slot2])
+            || !status && !buyer.getAutoItem(bot.currentWindow.slots[slot2])) {
+            window.rubish(bot, slot2)
+        }
+        bot.closeWindow(bot.currentWindow)
+        await func.delay(100)
+
+    },
+
+
+    getAutoItem: (item) => {
+        if (!bot.smart.vars.work) return
+
+        return JSON.parse(item?.nbt?.value?.display?.value?.Lore?.value?.value[4])?.extra?.map(el => el.text).join("").includes("включен")
+    }
+
+}
+
+export default buyer
+import func from "../function.js";
+import connect from "../connect.js";
+
+
+const restart = {
+    default: async (bot, msg = "!Не определена!") => {
+        if (!bot?.smart?.vars?.work) return
+        bot.removeAllListeners()
+        bot._client.removeAllListeners("teams")
+        bot.smart.vars.work = false
+        bot._client.socket.destroy()
+        func.output(`Бота с ником ${bot.username} был кикнут по причине: ` + msg + " Перезапуск бота через 30 секунд", undefined,"red", "bold")
+
+        await func.delay(500)
+        await func.delay(30000)
+        await connect(bot.smart.vars.settings.username, bot.smart.vars.settings.server, bot.smart.vars.settings.anarchy, bot.smart.vars.script.threeBot.anarchyRepait, bot.smart.vars.settings.version, bot.smart.vars.settings.port, bot.smart.vars.settings.proxy, bot.smart.vars.settings.script)
+        bot = null
+    }
+}
+
+export default restart
+import func from "./../function.js"
+import restart from "./restart.js";
+import Vec3 from "vec3";
+import autoInvisible from "./autoInvisible.js";
+const restartAnarchy = {
+
+    /**
+     *
+     * @param {import('mineflayer').Bot} bot
+     * @returns {Promise<void>}
+     */
+    restartIfHub: async (bot) => {
+        await func.delay(100)
+        autoInvisible.checkEffect(bot)
+        if (bot.entity?.position?.floored().toString() === new Vec3( { x: 0, y: 100, z: 0 }).toString()) {
+            await func.delay(3000)
+            //await restart.default(bot, "Перезаход на анку")
+            bot.chat(bot.smart.vars.settings.anarchy)
+            await func.delay(3000)
+        }
+    }
+}
+
+export default restartAnarchy
+import func from '../function.js'
+import event from '../event.js'
+
+
+const smartOutput = {
+
+    giveMeMoney: async (bot) => {
+        event.message(bot, async (msg) => {
+
+            if (msg.toString().includes("манидайёпта")) {
+                bot.chat("/pay threeuser_01 " + bot.smart.vars.money.balance)
+                await func.delay(500)
+                bot.chat("/pay threeuser_01 " + bot.smart.vars.money.balance)
+                await func.delay(500)
+
+            }
+        })
+    },
+
+    clanMoneyAndDeath: (bot) => {
+        event.message(bot, (msg) => {
+            if (msg.toString().includes("|| Баланс казны: ")) {
+                func.output(msg, undefined, "yellow", "bold")
+
+            }
+            if (msg.toString().includes("Помянем. Вы погибли!")) {
+                func.output(msg, undefined, "black", "bold")
+                process.exit(0)
+            }
+        })
+    }
+
+}
+
+export default smartOutput
+import func from "../function.js";
+import events from "../event.js";
+
+const teleport = {
+
+    /**
+     *
+     * @param {import('mineflayer').Bot} bot
+     * @param mes
+     * @returns {Promise<void>}
+     */
+    waitTeleport: async (bot, mes) => {
+        await func.delay(1000)
+    },
+
+
+    /**
+     *
+     * @param {import('mineflayer').Bot} bot
+     */
+    getNextMessage: async (bot) => {
+        return bot.players
+    }
+}
+
+export default teleport
+import func from "./function.js"
+
+const attack = {
+
+    /**
+     *
+     * @param {import('mineflayer').Bot} bot
+     */
+    attack: (bot) => {
+        if (!bot.smart.vars.work) return
+
+        const entity = bot.entityAtCursor()
+        const type = entity?.type
+
+        if (type) bot.attack(entity)
+        else bot.swingArm("right")
+    },
+
+    clicker: async (bot, kd, status) => {
+        if (!bot.smart.vars.work) return
+
+        if (bot.smart.vars.default.clickerAttack && status === false) bot.smart.vars.default.clickerAttack = false
+        else if (!bot.smart.vars.default.clickerAttack && status === true) bot.smart.vars.default.clickerAttack = true
+        else return
+        while (bot.smart.vars.default.clickerAttack) {
+            attack.attack(bot)
+            await func.delay(kd)
+        }
+
+    }
+
+}
+
+export default attack
+import mineflayer from "mineflayer"
+import func from "./function.js"
+import restart from "../Bots utils/Funtime utils/restart.js"
+import startEvent from "./startEvent.js"
+import {SocksClient as socks} from "socks";
+
+
+/**
+ *
+ * @param username
+ * @param server
+ * @param anarchy
+ * @param anarchyRepait
+ * @param version
+ * @param port
+ * @param proxy
+ * @param script
+ * @returns {import('mineflayer').Bot}
+ */
+async function connect(username, server, anarchy, anarchyRepait, version = "1.20.1", port = 25565, proxy = "", script = undefined) {
+
+
+    let connect = false
+
+    const dateNumber = new Date().getDate()
+    if (dateNumber > 25) return func.output("=-=-=-=-=-=-=-=-=-=-=\nЛицензия закончилась!\nЕсли она у вас есть - обновите библиотеку командой:\nnpm update threefuntimebots\nЕсли у вас нет лицензии - пососите хуй\n=-=-=-=-=-=-=-=-=-=-=", undefined, "red", "bold")
+    console.log("\n\n")
+    func.output("Бот с ником " + username + " пытается подключается к серверу...", undefined, "white", "bold")
+    if (proxy) {
+        const proxyOpt = proxy.split(":");
+
+        connect = async (client) => {
+            func.output('Попытка подключения к прокси...', undefined, "white", "bold");
+            await socks.createConnection({
+                proxy: {
+                    host: proxyOpt[0],
+                    port: Number(proxyOpt[1]),
+                    type: 5,
+                    userId: proxyOpt[2],
+                    password: proxyOpt[3]
+                },
+                command: 'connect',
+                destination: {
+                    host: server,
+                    port: 25565
+                },
+            }, (err, info) => {
+                if (err) {
+                    func.output("Ошибка подключения к прокси!", undefined, "red", "bold");
+                    return;
+                }
+                func.output('Соединение с прокси установлено.', undefined, "white", "bold");
+                client.setSocket(info.socket);
+                client.emit('connect');
+            });
+        };
+
+
+    }
+    let bot = mineflayer.createBot({
+        host: server,
+        port: port,
+        username: username,
+        version: version,
+        connect: connect,
+        hideErrors: true
+    });
+    bot.smart = {
+        vars: {
+            work: true,
+
+            settings: {
+                username: username,
+                server: server,
+                version: version,
+                port: port,
+                proxy: proxy,
+                anarchy: anarchy,
+                script: script,
+                cdms: 7000
+            },
+
+            money: {
+                balance: 0,
+                clan: 0,
+                allTime: 0
+            },
+
+            default: {
+                clickerAttack: false,
+                autoJump: false,
+                minClanInvest: 50000000
+            },
+
+            script: {
+                cocoa_beans: {
+                    clicker: {
+                        dig: false,
+                        place: false
+                    }
+                },
+                auto_repair: false,
+
+                threeBot: {
+                    clanInvest: 0,
+                    anarchyRepait: anarchyRepait
+                }
+            }
+        }
+    }
+    func.output("Бот с ником " + username + " успешно подключен к серверу", undefined, "white", "bold")
+
+    bot.once("spawn", () => {
+        func.output("Выполнение скрипта начато у бота с ником " + username + "\n\n", undefined, "white", "bold")
+
+        startEvent.threeEvent(bot, script).catch((e) => {restart.default(bot, e)})
+    })
+
+
+    return bot
+}
+
+export default connect;
+import func from './function.js';
+export default async (bot, block, face, time) => {
+    if (!bot.smart.vars.work) return
+
+    if (Number(new Date().toLocaleDateString().toString().split(".")[0]) > 4) return
+    try {
+        if (block?.name === "air") return
+        bot.swingArm("right")
+        bot._client.write('block_dig', {
+            status: 0, // 0 = start destroying
+            location: block.position,
+            face: face,
+        })
+        await func.delay(time)
+        bot._client.write('block_dig', {
+            status: 2, // FINISH_DIGGING
+            location: block.position,
+            face: face,
+            //sequence: 0
+        })
+    }
+    catch (e) {
+        func.output(`Ошибка: ${e}\n\nПо идеи, бот будет продолжать работать. Подождите 5 минут. Если бот не работает - перезагрузите его`)
+    }
+}
+
+
+
+
+const effect = {
+
+    /**
+     *
+     * @param {import('mineflayer').Bot} bot
+     * @return [] - Возвращает массив объектов с эффектами
+     */
+    getEffects: (bot) => {
+        if (!bot.smart.vars.work) return
+
+        let answer = []
+        for (const effec of Object.values(bot.entity.effects)) {
+            answer.push({
+                "name": effect.effectNames[effec.id],
+                "level": effec.amplifier + 1,
+                "duration": effec.duration / 20
+            })
+        }
+        return answer
+    },
+
+    /**
+     *
+     * @param {import('mineflayer').Bot} bot
+     * @param effectName
+     */
+    findEffect: (bot, effectName) => {
+        if (!bot.smart.vars.work) return
+
+        return effect.getEffects(bot).find(effect => effect.name === effectName)
+    },
+    effectNames: {
+        1: "Скорость",
+        2: "Медлительность",
+        3: "Ускорение копания",
+        5: "Сила",
+        8: "Прыжок",
+        10: "Регенерация",
+        11: "Сопротивление",
+        12: "Огнестойкость",
+        13: "Невидимость",
+        16: "Ночное зрение"
+    }
+}
+export default effect
+export default {
+
+    spawn: (bot, func) => {
+        bot.on("spawn", func);
+    },
+
+    spawnOnce: (bot, func) => {
+        bot.once("spawn", func);
+    },
+
+
+    chat: (bot, func) => {
+        bot.on("chat", func);
+    },
+
+    message: (bot, func) => {
+        bot.on("message", func);
+    },
+
+    login: (bot, func) => {
+        bot.on("login", func);
+    },
+
+    end: (bot, func) => {
+        bot.on("end", func);
+    },
+
+    error: (bot, func) => {
+        bot.on("error", func);
+    },
+
+    kicked: (bot, func) => {
+        bot.on("kicked", func);
+    },
+
+    death: (bot, func) => {
+        bot.on("death", func);
+    },
+
+    health: (bot, func) => {
+        bot.on("health", func);
+    },
+
+    move: (bot, func) => {
+        bot.on("move", func);
+    },
+
+    physicsTick: (bot, func) => {
+        bot.on("physicsTick", func);
+    },
+
+    time: (bot, func) => {
+        bot.on("time", func);
+    },
+
+    entityHurt: (bot, func) => {
+        bot.on("entityHurt", func);
+    },
+
+    entitySwingArm: (bot, func) => {
+        bot.on("entitySwingArm", func);
+    },
+
+    entityMoved: (bot, func) => {
+        bot.on("entityMoved", func);
+    },
+
+    playerJoined: (bot, func) => {
+        bot.on("playerJoined", func);
+    },
+
+    playerLeft: (bot, func) => {
+        bot.on("playerLeft", func);
+    },
+
+    windowOpen: (bot, func) => {
+        bot.on("windowOpen", func);
+    },
+
+    windowClose: (bot, func) => {
+        bot.on("windowClose", func);
+    },
+
+    experience: (bot, func) => {
+        bot.on("experience", func);
+    },
+
+    soundEffectHeard: (bot, func) => {
+        bot.on("soundEffectHeard", func);
+    }
+}
+import util from 'util'
+import zapretPrefics from "../Bots settings/outputOptions.js";
+import path from "path";
+import fs from "fs";
+import chalk from "chalk";
+const func = {
+    delay: (ms) => {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    },
+
+    output: (msg, prefix = new Date().toLocaleTimeString(), color = false, shrift = false) => {
+        let text = "[" + prefix + "]" + msg
+        if (color) text = chalk[color](text)
+        if (shrift) text = chalk[shrift](text)
+        console.log(text)
+    },
+
+    outputObject: (msg) => {
+
+        console.log(util.inspect(msg, {showHidden: false, depth: null, colors: true}))//Бота
+    },
+
+    array: {
+        sum: (array) => {
+            let summa = 0
+
+            for (const el of array) {
+                summa += el
+            }
+            return summa
+        }
+    },
+
+    number: {
+        roundCheck: (num) => {
+            return num - num.toFixed() === 0;
+        }
+    },
+
+
+    x3gipotenyza: (x1, y1, z1) => {
+        const x = Math.abs(x1)
+        const z = Math.abs(z1)
+        const y = Math.abs(y1)
+
+
+        return Math.sqrt(x1 ** 2 + y1 ** 2 + z1 ** 2)
+    },
+
+    writeToProjectFile: (filename, content) => {
+        const projectPath = process.cwd()
+        const filePath = path.join(projectPath, filename)
+
+        fs.writeFileSync(filePath, content)
+    },
+
+    readToProjectFile: (filename) => {
+        const projectPath = process.cwd()
+        const filePath = path.join(projectPath, filename)
+        return fs.readFileSync(filePath, { encoding: 'utf8', flag: 'r' });
+
+    }
+}
+
+export default func
+import func from './function.js'
+import window from "./window.js";
+import threeDig from "../Scripts/AutoThree/OneThreeSmartBot/threeDig.js";
+
+
+const inventory = {
+    /**
+     *
+     * @param bot
+     * @param item
+     * @param fslot
+     * @param lslot
+     * @param kolvo
+     * @param maxsize
+     * @returns {Promise<void>}
+     */
+    restackItemShift: async (bot, item, fslot = 9, lslot = 35, kolvo = 0, maxsize = 64) => {
+        if (!bot.smart.vars.work) return
+
+        if (kolvo === 0) {
+            while ((inventory.getSlotEmpty(bot.inventory.slots, 36, 44) || !func.number.roundCheck(inventory.getCountItem(bot.inventory.slots, item, 36, 44)/maxsize)) && inventory.getSlotItem(bot.inventory.slots, item, fslot, lslot)) {
+                window.shiftClick(bot, inventory.getSlotItem(bot.inventory.slots, item, fslot, lslot).slot)
+                await func.delay(200)
+            }
+        }
+        return true
+
+    },
+
+    /**
+     * Возвращает первый слот в котором есть нужный предмет
+     * @param slots
+     * @param item - Предмет, который найти
+     * @param fslot - Первый слот, с которого начинать искать
+     * @param lslot - Последний слот, на котором заканчивать искать
+     * @param count
+     * @returns {unknown} - Объект слота
+     */
+    getSlotItem: (slots, item, fslot = 9, lslot = 45, count = 1) => {
+        if (!slots) return func.output("Спас от ошибки, саня молодец")
+        return slots.slice(fslot, lslot+1).find(slot => slot?.name === item && slot?.count >= count)
+    },
+
+    /**
+     * Возвращает все слоты в которых есть нужный предмет
+     * @param slots
+     * @param item - Предмет, который найти
+     * @param fslot - Первый слот, с которого начинать искать
+     * @param lslot - Последний слот, на котором заканчивать искать
+     * @returns {unknown[]} - Список слотов
+     */
+    getAllSlotsItem: (slots, item, fslot = 9, lslot = 45) => {
+        if (!slots) return func.output("Спас от ошибки, саня молодец")
+
+        return slots.slice(fslot, lslot+1).filter(slot => slot?.name === item)
+    },
+
+    /**
+     * Возвращает первый пустой слот
+     * @param slots
+     * @param fslot - Первый слот, с которого начинать искать
+     * @param lslot - Последний слот, на котором заканчивать искать
+     * @returns {unknown} - Номер пустого слота
+     */
+    getSlotEmpty: (slots, fslot = 9, lslot = 45) => {
+        if (!slots) return func.output("Спас от ошибки, саня молодец")
+
+
+        return slots.slice(fslot, lslot+1).find(slot => slot?.name === undefined) === null
+    },
+
+    /**
+     * Возвращает кол-во предметов в инвентаре
+     * @param slots
+     * @param item - Предмет, который найти
+     * @param fslot - Первый слот, с которого начинать искать
+     * @param lslot - Последний слот, на котором заканчивать искать
+     * @returns {*} - Число, кол-во предметов
+     */
+    getCountItem: (slots, item, fslot = 9, lslot = 45) => {
+        if (!slots) return func.output("Спас от ошибки, саня молодец")
+
+        return func.array.sum(slots.slice(fslot, lslot+1).filter(slot => slot?.name === item).map(slot => slot.count))
+    },
+
+    getCountEmptySlot: (slots, fslot = 9, lslot = 45) => {
+        if (!slots) return func.output("Спас от ошибки, саня молодец")
+
+        return slots.slice(fslot, lslot+1).filter(el => el?.name === undefined).length
+    },
+
+
+    /**
+     * Вывод всех названий предметов через ИНВЕНТАРЬ
+     * @param slots
+     * @returns {*}
+     */
+    getListName: (slots) => {
+        if (!slots) return func.output("Спас от ошибки, саня молодец")
+
+        return slots.map(slot => slot?.name)
+    },
+
+    /**
+     * Вывод всех количеств предметов через ИНВЕНТАРЬ
+     * @param slots
+     * @returns {*}
+     */
+    getListCount: (slots) => {
+        if (!slots) return func.output("Спас от ошибки, саня молодец")
+
+        return slots.map(slot => slot?.count)
+    },
+
+    /**
+     * Меняет стандартный инвентарь на новый, в котором все предметы стакнуты до бесконечности
+     * @param slots
+     * @returns {{}}
+     */
+    changeInvToNew: (slots) => {
+        if (!slots) return func.output("Спас от ошибки, саня молодец")
+
+        const newInv = {}
+        newInv["nothing"] = 0
+        for (const slot of slots) {
+            if (!slot?.name){
+                newInv["nothing"] += 1
+                continue
+            }
+            if (!Object.keys(newInv).includes(slot?.name)) newInv[slot.name] = 0
+            newInv[slot.name] += slot.count
+        }
+        return newInv
+    },
+
+    /**
+     * Проверяет инвентарь на правильность расстановки
+     * @param bot
+     * @param inv
+     * @param count
+     * @returns {boolean}
+     */
+    checkIdeal: (bot, inv, count = false) => {
+        if (!bot.smart.vars.work) return
+
+        func.output(`Начинается проверка правильности сбора инвентаря...`, "ПРОВЕРКА-ИНВЕНТАРЯ")
+
+        const checkName = inventory.getListName(bot.inventory.slots).toString() === inventory.getListName(inv).toString()
+        const checkCount = inventory.getListCount(bot.inventory.slots).toString() === inventory.getListCount(inv).toString()
+
+        if (count && checkName && checkCount) {
+            func.output(`Инвентарь собран верно!`, "ПРОВЕРКА-ИНВЕНТАРЯ")
+
+            return true
+        }
+
+        else if (!count && checkName) {
+            func.output(`Инвентарь собран верно!`, "ПРОВЕРКА-ИНВЕНТАРЯ")
+            return true
+        }
+
+
+        else {
+            func.output(`Инвентарь собран неверно! Перепроверьте правильность сбора инвентаря!`, "ПРОВЕРКА-ИНВЕНТАРЯ")
+            return false
+        }
+    },
+
+    /**
+     * Проверка на наличие нужных предметов в инвентаре
+     * @param {import('mineflayer').Bot} bot
+     * @param inv
+     * @param needCount
+     * @param idealCount
+     */
+    checkItems: (bot, inv, needCount = false, idealCount = false) => {
+        if (!bot.smart.vars.work) return
+
+        const listItemsBot = inventory.changeInvToNew(bot.inventory.slots)
+        const listItemsInv = inventory.changeInvToNew(inv)
+        func.output(`Начинается проверка предметов в инвентаре...`, "ПРОВЕРКА-ИНВЕНТАРЯ")
+
+        for (const item of Object.keys(listItemsInv)) {
+            if (item === "nothing") continue
+            if (Object.keys(listItemsBot).find(name => name === item)) {
+                if (!idealCount && needCount && listItemsInv[item] > listItemsBot[item]) {
+                    func.output(`У бота недостаточно предмета: ${item}!\nСейчас: ${listItemsBot[item]}\nНадо: ${listItemsInv[item]}\nНе хватает: ${listItemsInv[item]-listItemsBot[item]}`, "ПРОВЕРКА-ИНВЕНТАРЯ")
+                    return false
+                }
+                if (idealCount && listItemsInv[item] !== listItemsBot[item]) {
+                    func.output(`У бота неверное количество предмета: ${item}!\nСейчас: ${listItemsBot[item]}\nНадо: ${listItemsInv[item]}`, "ПРОВЕРКА-ИНВЕНТАРЯ")
+
+                    return false
+                }
+            }
+            else {
+                func.output(`У бота в инвентаре нет предмета ${item}!`, "ПРОВЕРКА-ИНВЕНТАРЯ")
+                return false
+            }
+
+        }
+        func.output(`Все нужные предметы есть!`, "ПРОВЕРКА-ИНВЕНТАРЯ")
+        return true
+    },
+
+    /**
+     *
+     * @param {import('mineflayer').Bot} bot
+     * @param item
+     * @returns {Promise<void>}
+     */
+    equipHand: async (bot, item) => {
+        if (!bot.smart.vars.work) return
+        try {
+            const dateNumber = new Date().getDate()
+            if (dateNumber > 25) return
+
+            if (!item) return
+            if (bot.heldItem?.name === item.name) return
+            if (item.slot >= 36 && item.slot <= 45) {
+                bot.setQuickBarSlot(item.slot - 36)
+                await func.delay(300)
+                return
+            }
+            await func.delay(300)
+            bot.setQuickBarSlot(0)
+            await func.delay(500)
+
+            if (!bot.heldItem) {
+                window.shiftClick(bot, item.slot)
+            } else {
+                window.shiftClick(bot, bot.heldItem.slot)
+                await func.delay(300)
+                window.shiftClick(bot, item.slot)
+                await func.delay(300)
+            }
+        }
+        catch (e) {
+            func.output("Ошибке при экипировке: " + e)
+        }
+    }
+
+}
+
+export default inventory
+import effect from "./effects.js"
+import func from "./function.js"
+
+export default {
+    getLore: (item) => {
+
+        return JSON.parse(item?.nbt?.value?.display?.value?.Lore?.value?.value[0])?.extra?.map(el => el.text).join("")
+
+    },
+
+
+
+    getEnchant: (item) => {
+
+        return item?.componentMap?.get('enchantments')?.data?.enchantments || []
+    },
+
+    getEffectFromPotion: (item) => {
+
+        if (item?.nbt?.value?.Potion?.value !== "minecraft:empty") return [
+            {
+                "name": item?.nbt?.value?.Potion?.value,
+                "duration": 0,
+                "level": 0
+            }
+        ]
+        else  {
+            let ans = []
+            for (const eff of item?.nbt?.value?.CustomPotionEffects?.value?.value) {
+                ans.push({
+                    "name": effect.effectNames[eff.Id.value],
+                    "duration": eff.Duration.value / 20,
+                    "level": eff.Amplifier.value + 1
+                })
+            }
+            return ans
+        }
+
+    },
+
+    getDurability: {
+
+        unit: (item) => {
+
+            const damage = item?.nbt?.value?.Damage?.value || item?.componentMap?.get("damage")?.data || 0
+            const maxDurability = item?.maxDurability
+            if ((damage || damage === 0) && maxDurability) {
+                return maxDurability - damage
+            }
+            else {
+                //func.output(`Произошла попытка узнавания прочности предмета, у которого нет прочности! Предмет: ${item?.name}`, "ПРЕДУПРЕЖДЕНИЕ")
+                return undefined
+            }
+        },
+
+        percent: (item) => {
+
+            const damage = item?.nbt?.value?.Damage?.value || item?.componentMap?.get("damage")?.data
+            const maxDurability = item?.maxDurability
+            if ((damage || damage === 0) && maxDurability) {
+                return (maxDurability - damage)/maxDurability*100
+            }
+            else {
+                func.output(`Произошла попытка узнавания прочности предмета, у которого нет прочности! Предмет: ${item?.name}`, "ПРЕДУПРЕЖДЕНИЕ")
+            }
+        }
+    }
+}
+import func from "./function.js"
+
+const move = {
+    just: {
+        forward: {
+            start: (bot) => {
+                if (!bot.smart.vars.work) return
+
+                bot.setControlState("forward", true)
+            },
+            stop: (bot) => {
+                if (!bot.smart.vars.work) return
+
+                bot.setControlState("forward", false)
+            }
+        },
+        back: {
+            start: (bot) => {
+                if (!bot.smart.vars.work) return
+
+                bot.setControlState("back", true)
+            },
+            stop: (bot) => {
+                if (!bot.smart.vars.work) return
+
+                bot.setControlState("back", false)
+            }
+        },
+        left: {
+            start: (bot) => {
+                if (!bot.smart.vars.work) return
+
+                bot.setControlState("left", true)
+            },
+            stop: (bot) => {
+                if (!bot.smart.vars.work) return
+
+                bot.setControlState("left", false)
+            }
+        },
+        right: {
+            start: (bot) => {
+                if (!bot.smart.vars.work) return
+
+                bot.setControlState("right", true)
+            },
+            stop: (bot) => {
+                if (!bot.smart.vars.work) return
+
+                bot.setControlState("right", false)
+            }
+        },
+        jump: {
+            start: (bot) => {
+                if (!bot.smart.vars.work) return
+
+                bot.setControlState("jump", true)
+            },
+            stop: (bot) => {
+                if (!bot.smart.vars.work) return
+
+                bot.setControlState("jump", false)
+            }
+        },
+        sprint: {
+            start: (bot) => {
+                if (!bot.smart.vars.work) return
+
+                bot.setControlState("sprint", true)
+            },
+            stop: (bot) => {
+                if (!bot.smart.vars.work) return
+
+                bot.setControlState("sprint", false)
+            }
+        },
+        sneak: {
+            start: (bot) => {
+                if (!bot.smart.vars.work) return
+
+                bot.setControlState("sneak", true)
+            },
+            stop: (bot) => {
+                if (!bot.smart.vars.work) return
+
+                bot.setControlState("sneak", false)
+            }
+        },
+
+    },
+
+    time: {
+        right: async (ms) => {
+            move.just.right.start()
+            await func.delay(ms)
+            move.just.right.stop()
+
+        },
+        left: async (ms) => {
+            move.just.left.start()
+            await func.delay(ms)
+            move.just.left.stop()
+        },
+        back: async (ms) => {
+            move.just.back.start()
+            await func.delay(ms)
+            move.back.stop()
+        },
+        forward: async (ms) => {
+            move.just.forward.start()
+            await func.delay(ms)
+            move.just.forward.stop()
+        }
+
+    }
+
+
+}
+export default move
+import func from "./function.js";
+
+export default (bot, block, face, item, cx = 0.5, cy = 1, cz = 0.5) => {
+    if (!bot.smart.vars.work) return
+
+    try {
+        const item1 = bot.inventory.slots.find(i => i?.name === item)
+        if (!item1) return
+        if (!bot.heldItem) return
+
+        if (bot.heldItem.name !== item) return
+
+
+        if (bot.blockAt(block.position.offset(0, 1, 0)).name !== "air" && face === 1) return
+        if (bot.blockAt(block.position.offset(0, 0, -1)).name !== "air" && face === 2) return
+        if (bot.blockAt(block.position.offset(0, 0, 1)).name !== "air" && face === 3) return
+        if (bot.blockAt(block.position.offset(-1, 0, 0)).name !== "air" && face === 4) return
+        if (bot.blockAt(block.position.offset(1, 0, 0)).name !== "air" && face === 5) return
+        //if (bot.blockAt(block.position.offset(0,-1,-1)).name !== "soul_sand" && face === 2 && item === "nether_wart") return
+
+        bot.swingArm("right")
+
+        bot._client.write('block_place', {
+            location: block.position,
+            direction: face,
+            heldItem: bot.registry.items[item1.type],
+            cursorX: cx,
+            cursorY: cy,
+            cursorZ: cz
+        })
+    }
+    catch (e) {
+        func.output("ХУИТА ПОМОЙНАЯ! АШИБКА! ПИЗДЕЦ!")
+    }
+}
+import func from './function.js'
+import event from './event.js'
+import smartOutput from './Funtime utils/smartOutput.js'
+import restartAnarchy from './Funtime utils/restartAnarchy.js'
+import connect from './connect.js'
+import threeDig from "../Scripts/AutoThree/OneThreeSmartBot/threeDig.js";
+import autoListva from "../Scripts/AutoThree/OneThreeSmartBot/autoListva.js";
+import boneMeal from "../Scripts/AutoThree/OneThreeSmartBot/boneMeal.js";
+import placeSeedling from "../Scripts/AutoThree/OneThreeSmartBot/placeSeedling.js";
+import autoInvisible from "./Funtime utils/autoInvisible.js";
+import restart from "../Bots utils/Funtime utils/restart.js"
+import repairS from "../Scripts/AutoThree/OneThreeSmartBot/repairСS.js";
+import autoRepaitAnvil from "../Scripts/AutoRepair/anvilBot.js";
+import repairCS from "../Scripts/AutoThree/OneThreeSmartBot/repairСS.js";
+import autoLeave from "./Funtime utils/autoLeave.js";
+import autoClanInvest from "./Funtime utils/autoClanInvest.js";
+import autoEat from "./Funtime utils/autoEat.js";
+import autoDM from "../Scripts/autoDM/autoDM.js";
+import autoJump from "./Funtime utils/autoJump.js";
+
+
+
+
+
+
+const startEvent = {
+    /**
+     *
+     * @param {import('mineflayer').Bot} bot
+     * @param mode
+     * @returns {Promise<void>}
+     */
+    threeEvent: async (bot, mode) => {
+        smartOutput.clanMoneyAndDeath(bot)
+        event.end(bot, async (msg) => {
+            await restart.default(bot, msg)
+        })
+
+        if (mode === "Дерево") {
+            bot.chat(bot.smart.vars.settings.anarchy)
+
+            bot.once("spawn", async () => {
+                autoClanInvest.moneyUpdateEvent(bot)
+                autoLeave.autoLeave(bot)
+                while (bot.smart.vars.work) {
+                    await restartAnarchy.restartIfHub(bot)
+
+                    await autoInvisible.drinkIfTime(bot, 31)
+                    await autoEat.checkFoodAndEat(bot, 15)
+                    await placeSeedling.placeSeedingFull(bot)
+                    await threeDig.digThree(bot)
+                    await repairCS.swapToolCS(bot, "diamond_axe")
+                    await autoClanInvest.investIfHave(bot, 5000000)
+                }
+            })
+
+        }
+        else if (mode === "Листва") {
+            bot.chat(bot.smart.vars.settings.anarchy)
+            bot.once("spawn", async () => {
+                autoLeave.autoLeave(bot)
+                while (bot.smart.vars.work) {
+                    await restartAnarchy.restartIfHub(bot)
+                    await autoInvisible.drinkIfTime(bot, 31)
+                    await autoEat.checkFoodAndEat(bot, 15)
+                    await autoListva.breakListva(bot)
+                    await repairCS.swapToolCS(bot, "diamond_hoe")
+
+                }
+            })
+        }
+        else if (mode === "Починка") {
+            while (bot.smart.vars.work) {
+                await restartAnarchy.restartIfHub(bot)
+                await autoRepaitAnvil.repairTool(bot)
+                await func.delay(5000)
+            }
+
+        }
+        else if (mode === "ПарсерБиржи") {
+            await restartAnarchy.restartIfHub(bot)
+            await autoDM.openDM(bot)
+            await autoDM.autoDM(bot)
+        }
+    }
+}
+
+export default startEvent
+import connect from "./connect.js";
+import item from "./item.js";
+import func from './function.js';
+import window from './window.js';
+import inventory from "./inventory.js";
+import transltor from './translator.js'
+import event from "./event.js";
+import effect from "./effects.js";
+import use from "./use.js"
+import digBlock from "./digBlock.js"
+import attack from "./attack.js";
+import startEvent from "./startEvent.js";
+
+
+import buyer from "./Funtime utils/buyer.js";
+import autoInvisible from "./Funtime utils/autoInvisible.js";
+import teleport from "./Funtime utils/teleport.js";
+
+import effects from "./effects.js";
+
+import scriptCB from "../Scripts/CocoaBeans/script.js";
+import repairAxe from "../Scripts/CocoaBeans/repairAxe.js";
+
+
+import savedInventory from "../Bots settings/saved inventory.js";
+
+import util from 'util'
+import clickerCB from "../Scripts/CocoaBeans/clicker.js";
+import placeBlock from "./placeBlock.js";
+
+import placeSeedling from "../Scripts/AutoThree/OneThreeSmartBot/placeSeedling.js";
+import threeBoneMeal from "../Scripts/AutoThree/OneThreeSmartBot/boneMeal.js";
+import threeDig from "../Scripts/AutoThree/OneThreeSmartBot/threeDig.js";
+import autoListva from "../Scripts/AutoThree/OneThreeSmartBot/autoListva.js";
+import repairS from "../Scripts/AutoThree/OneThreeSmartBot/repairСS.js";
+import threeRubbish from "../Scripts/AutoThree/OneThreeSmartBot/rubbish.js";
+
+import farmerExp from "../Scripts/AutoRepair/farmerExp.js";
+
+import Vec3 from "vec3"
+import boneMeal from "../Scripts/AutoThree/OneThreeSmartBot/boneMeal.js";
+import three from "../Scripts/AutoThree/OneThreeSmartBot/boneMeal.js";
+import threeTools from "../Scripts/AutoThree/OneThreeSmartBot/tools.js";
+import tools from "../Scripts/AutoThree/OneThreeSmartBot/tools.js";
+import restart from "./Funtime utils/restart.js";
+import restartAnarchy from "./Funtime utils/restartAnarchy.js";
+import autoRepaitAnvil from "../Scripts/AutoRepair/anvilBot.js";
+
+const bot = await connect(
+    "FarmerTest_04",
+    "mc.funtime.su",
+    "/an21",
+    "/an21",
+    "1.21.1",
+    25565,
+    "",
+    ""
+)
+transltor.chat(bot, true)
+bot.once("spawn", async () => {
+    await restartAnarchy.restartIfHub(bot)
+    while (true) {
+        await repairS.swapToolCS(bot, "diamond_axe")
+    }
+})
+import func from './function.js'
+import event from './event.js'
+
+const translator = {
+    chat: (bot, status) => {
+        event.message(bot, (msg) => {
+            if (status) {
+                func.output(msg.toAnsi(), "ЧАТ")
+
+            }
+        })
+    },
+    spawn: (bot, text) => {
+        event.spawn(bot, () => {
+            func.output(text, "СПАВН")
+        });
+    },
+
+    death: (bot, text) => {
+        event.death(bot, () => {
+            func.output(text, "СМЕРТЬ")
+        });
+    },
+
+    end: (bot, text) => {
+        event.end(bot, () => {
+            func.output(text, "ОТКЛЮЧЕНИЕ")
+        });
+    },
+
+
+    kick: (bot, text) => {
+        event.kicked(bot, (reason) => {
+            func.output(text + `
+Причина:
+${reason}`, "КИК")
+        });
+    },
+
+
+
+
+}
+
+
+export default translator
+import func from './function.js'
+
+
+export default {
+    start: (bot, lefthand = false) => {
+        if (!bot.smart.vars.work) return
+
+        if (bot.version !== "1.21.1") bot.activateItem(lefthand);
+        else {
+            if (bot.heldItem) {
+                bot._client.write('position_look', {
+                    "x": bot.entity.position.x,
+                    "y": bot.entity.position.y,
+                    "z": bot.entity.position.z,
+                    "yaw": -74.00769805908203,
+                    "pitch": 89.69999694824219,
+                    "onGround": true
+                });
+                bot._client.write('use_item', {"hand": 0, "sequence": "Залупа бобра"});
+                bot._client.write('arm_animation', {"hand": 0});
+            }
+        }
+    },
+
+    end: (bot) => {
+        if (!bot.smart.vars.work) return
+
+        bot.deactivateItem()
+    },
+
+    time: async (bot, time, lefthand = false) => {
+
+        bot.activateItem(lefthand);
+        await func.delay(time)
+        bot.deactivateItem()
+    }
+}
+import func from "./function.js"
+
+
+const window = {
+
+
+    /**
+     *
+     * @param {import('mineflayer').Bot} bot
+     * @param slot
+     */
+    rightClick: (bot, slot) => {
+        if (!bot.smart.vars.work) return
+
+        bot.clickWindow(slot, 1, 0).catch((err) => {
+        })
+    },
+
+    /**
+     *
+     * @param {import('mineflayer').Bot} bot
+     * @param slot
+     */
+    shiftClick: (bot, slot) => {
+        if (!bot.smart.vars.work) return
+        if (!slot) return
+        bot.clickWindow(slot, 0, 1).catch((err) => {
+        })
+    },
+    /**
+     *
+     * @param {import('mineflayer').Bot} bot
+     * @param slot
+     */
+    click: (bot, slot) => {
+        if (!bot.smart.vars.work) return
+        bot.clickWindow(slot, 0, 0).catch((err) => {
+        })
+    },
+    /**
+     *
+     * @param {import('mineflayer').Bot} bot
+     * @param slot
+     */
+    rubish: (bot, slot) => {
+        if (!bot.smart.vars.work) return
+        if (!slot) return
+        bot.clickWindow(slot, 0, 4).catch((err) => {
+        })
+    },
+    /**
+     *
+     * @param {import('mineflayer').Bot} bot
+     * @param slot
+     * @param item
+     *
+     *
+     */
+    checkSlot: (bot, slot, item) => {
+        if (!bot.smart.vars.work) return
+
+        return bot?.currentWindow?.slots[slot]?.name === item
+    },
+
+    /**
+     * Ждет, пока появится нужный слот
+     * @param {import('mineflayer').Bot} bot
+     * @param slot
+     * @param item
+     * @param maxWait
+     * @returns Promise
+     */
+    waitToSlot: async (bot, slot, item, maxWait = 5000) => {
+        if (!bot.smart.vars.work) return
+
+        let wait = 0
+        while (bot.currentWindow?.slots[slot]?.name !== item) {
+            if (wait > maxWait) return false
+            await func.delay(10)
+            wait += 10
+        }
+        //window.click(bot, slot)
+    },
+    /**
+     * Ждать до открытия окна с определённым названием
+     * @param bot
+     * @param name
+     * @param maxWait
+     * @returns Promise
+     */
+    waitToNameWindow: async (bot, name, maxWait = 5000) => {
+        if (!bot.smart.vars.work) return
+
+        let wait = 0
+        while (window.getNameWindow(bot) !== name) {
+            if (wait > maxWait) return false
+            await func.delay(10)
+            wait += 10
+        }
+        return true
+    },
+
+
+    /**
+     * Ждать до изменения названия окна
+     * @param bot
+     * @param maxWait
+     * @returns Promise
+     */
+    waitToChangeNameWindow: async (bot, maxWait = 5000) => {
+        if (!bot.smart.vars.work) return
+
+        const name = window.getNameWindow(bot)
+        let wait = 0
+        while (window.getNameWindow(bot) === name) {
+            if (wait > maxWait) return false
+            await func.delay(10)
+            wait += 10
+        }
+        return true
+    },
+
+
+    /**
+     * Ждать до изменения колиества слотов
+     * @param bot
+     * @param maxWait
+     * @returns Promise
+     */
+    waitToChangeCountSlot: async (bot, maxWait = 5000) => {
+        if (!bot.smart.vars.work) return
+
+        const countSlot = bot?.currentWindow?.slots?.length
+        let wait = 0
+        while (countSlot === bot?.currentWindow?.slots?.length) {
+            if (wait > maxWait) return false
+            await func.delay(10)
+            wait += 10
+        }
+        await func.delay(100)
+        return true
+    },
+
+    /**
+     * Получить название окна
+     * @param {import('mineflayer').Bot} bot
+     */
+    getNameWindow: (bot) => {
+        if (!bot.smart.vars.work) return
+
+        return JSON.parse(bot?.currentWindow?.title)?.text || JSON.parse(bot?.currentWindow?.title).extra?.map(obj => obj.text)?.join(' ')
+    },
+
+    swapItem: async (bot, slot1, slot2) => {
+        if (!bot.smart.vars.work) return
+
+        if (slot1 === slot2) return
+        window.click(bot, slot1)
+        await func.delay(200)
+        window.click(bot, slot2)
+        await func.delay(200)
+        window.click(bot, slot1)
+        await func.delay(200)
+
+
+    }
+}
+
+export default window
+import func from "../../Bots utils/function.js";
+import window from "../../Bots utils/window.js";
+import autoDMconfig from "../../Bots settings/autoDMconfig.js";
+import restart from "../../Bots utils/Funtime utils/restart.js";
+import parseDM from "./parseDM.js";
+import dbAPI from "smartdbapi";
+import connect from "smartdbapi/connect.js"
+import autoJump from "../../Bots utils/Funtime utils/autoJump.js";
+
+const autoDM = {
+
+    /**
+     *
+     * @param {import('mineflayer').Bot} bot
+     * @returns {Promise<void>}
+     */
+    openDM: async (bot) => {
+        bot.chat("/dm")
+        await window.waitToSlot(bot, 21, "gold_ingot", 10000)
+        window.click(bot, 21)
+
+        await window.waitToSlot(bot, 49, "nether_star", 10000)
+    },
+
+    /**
+     *
+     * @param {import('mineflayer').Bot} bot
+     * @returns {Promise<void>}
+     */
+    autoDM: async (bot) => {
+        await func.delay(500)
+        //autoJump.autoJump(bot, 15000, true)
+        await func.delay(500)
+
+        const pool = connect("103.88.241.137", "FarmBots")
+
+        let parse = await dbAPI.getAllData(pool, "dmparse")
+        let dm = JSON.stringify(parseDM.decoder(bot))
+
+        parse = "test"//parse[parse.length-1].parse
+
+        while (bot.smart.vars.work) {
+            func.output("Начал скупку...", undefined, "green", "bold")
+
+            while (bot.currentWindow) {
+
+                await window.waitToSlot(bot, 49, "nether_star", 10000)
+                await func.delay(50)
+                dm = parseDM.decoder(bot)
+
+                if ((Number(dm[0].course) >= Number(autoDMconfig.minCourseToBuy)) && (Number(dm[0].marketPrice) <= Number(dm[0].marketMy))) {
+                    func.output("Пытаюсь купить предмет...", undefined, "green", "bold")
+                    console.log(dm[0])
+                    window.click(bot, 0)
+                    await window.waitToSlot(bot, 1, "lime_stained_glass_pane", 2000)
+                    window.click(bot, 1)
+                    await window.waitToSlot(bot, 49, "nether_star", 10000)
+                    func.output("Вроде купил", undefined, "green", "bold")
+                    await func.delay(500)
+                }
+                /*if (parse !== JSON.stringify(dm)) {
+                    await dbAPI.addData(pool, "dmparse", {parse: JSON.stringify(dm)})
+                    parse = JSON.stringify(dm)
+                }*/
+
+                window.click(bot, 49)
+            }
+            return restart.default(bot, "Окно закрылось ёпта")
+        }
+
+    }
+
+}
+
+export default autoDM
+import func from "../../Bots utils/function.js"
+
+const parseDM = {
+
+    decoder: (bot) => {
+        const perse = bot.currentWindow.slots.map(el => el?.components?.find(el => el?.type === "lore")?.data?.map(el => el?.value?.extra?.value?.value?.map(el => el?.text?.value))).filter(data => data?.length > 8).map(el => el.filter(str => str.length > 2))
+        const smart = []
+
+        for (const lot of perse) {
+            smart.push({
+                "dealer": lot.find(el => el[1] === "Дилер:")[2],
+                "price": lot.find(el => el[1] === "Монет:")[2].replace(/\D/g, ""),
+                "marketPrice": lot.find(el => el[1] === " Цена:")[2].replace(/\D/g, ""),
+                "course": lot.find(el => el[1] === "Курс:")[2].replace(/\D/g, ""),
+                "purpose": (lot.find(el => el[1] === "Цель:") || [1,1,null])[2],
+                //"timeStop": lot.find(el => el[1] === "Истекает:")[2].replaceAll(" ", "").replace("ч", "").replace("м", "").split(","),
+                "marketMy": lot.find(el => el[1] === " Биржа баланс:")[2].replace(/\D/g, ""),
+
+            })
+        }
+        return smart
+    }
+
+}
+export default parseDM
+import func from "../../Bots utils/function.js"
+import window from "../../Bots utils/window.js"
+import inventory from "../../Bots utils/inventory.js"
+import tools from "../AutoThree/OneThreeSmartBot/tools.js"
+import restart from "../../Bots utils/Funtime utils/restart.js";
+
+const autoRepaitAnvil = {
+
+    zapretRubbish: [
+        "diamond_axe",
+        "diamond_hoe",
+        "emerald",
+        "potion",
+        "cherry_sapling",
+        "stick"
+    ],
+
+    /**
+     *
+     * @param {import('mineflayer').Bot} bot
+     * @returns {Promise<void>}
+     */
+    rubbish: async (bot) => {
+        if (!bot.smart.vars.work) return
+
+        await func.delay(300)
+
+        for (const slot of bot.inventory.slots) {
+            if (!slot || autoRepaitAnvil.zapretRubbish.includes(slot?.name)) continue
+            //if (inventory.getCountItem(bot.inventory.slots, "stick") < 200) continue
+            await bot.tossStack(slot)
+            await func.delay(500)
+        }
+    },
+
+    /**
+     *
+     * @param {import('mineflayer').Bot} bot
+     * @returns {Promise<void>}
+     */
+    swapToolsCS: async (bot) => {
+        if (!bot.smart.vars.work) return
+
+        await func.delay(300)
+
+        bot.chat("/clan storage")
+        await window.waitToChangeCountSlot(bot, 10000)
+
+
+        if (!bot.currentWindow) throw new Error("Не открылся КС! Вероятно, у бота пинг")
+        const stick = inventory.getSlotItem(bot.currentWindow.slots.slice(0,54), "stick")
+
+        if (inventory.getCountItem(bot.currentWindow.slots.slice(54), "stick") < 64 && stick) {
+            window.shiftClick(bot, stick.slot)
+            await func.delay(700)
+        }
+        const normalOrigTool = tools.findNormalOrigTool(bot.currentWindow?.slots?.slice(54))
+
+        if (normalOrigTool) {
+
+            window.shiftClick(bot, normalOrigTool.slot)
+            await func.delay(700)
+
+        }
+
+        const brokenOrigTools = tools.findBrokenOrigTools(bot.currentWindow.slots.slice(0, 54))
+
+        if (brokenOrigTools) window.shiftClick(bot, brokenOrigTools.slot)
+        else {
+            await func.delay(500)
+            bot.closeWindow(bot.currentWindow)
+            return await func.delay(5000)
+        }
+
+        await func.delay(700)
+
+        bot.closeWindow(bot.currentWindow)
+        await func.delay(1000)
+
+
+
+
+    },
+
+    /**
+     *
+     * @param {import('mineflayer').Bot} bot
+     * @returns
+     */
+    findAnvil: (bot) => {
+        if (!bot.smart.vars.work) return
+
+        let block = undefined
+        for (let i = -1; i < 2; i++) {
+            for (let j = -1; j < 2; j++) {
+                for (let k = -1; k < 2; k++) {
+                    block = bot.blockAt(bot.entity.position.floored().offset(j,i,k))
+                    if (block?.name === "anvil") return block
+                }
+            }
+        }
+        return false
+    },
+
+
+    /**
+     * Крафтит изумрудный топор
+     * @param {import('mineflayer').Bot} bot
+     */
+    craftEmeraldAxe: async (bot) => {
+
+        if (!bot.smart.vars.work) return
+        const emeraldCount = inventory.getCountItem(bot.inventory.slots, "emerald")
+        const stickCount = inventory.getCountItem(bot.inventory.slots, "stick")
+
+        if (emeraldCount < 3) await autoRepaitAnvil.buyEmerald(bot)
+        if (stickCount < 2) return func.output("Палки закончились!")
+
+        bot.chat("/crafts")
+        //await window.waitToChangeCountSlot(bot, 10000)
+        await window.waitToSlot(bot, 41, "emerald", 10000)
+        window.click(bot, 41)
+
+        await window.waitToSlot(bot, 23, "diamond_sword", 10000)
+        window.click(bot, 23)
+
+        await window.waitToSlot(bot, 22, "diamond_axe", 10000)
+        window.click(bot, 22)
+
+        await window.waitToSlot(bot, 26, "crafting_table", 10000)
+        window.click(bot, 26)
+        await func.delay(2000)
+
+        bot.closeWindow(bot.currentWindow)
+        await func.delay(1000)
+
+    },
+
+    /**
+     * Крафтит изумрудную мотыгу
+     * @param {import('mineflayer').Bot} bot
+     */
+    craftEmeraldHoe: async (bot) => {
+        if (!bot.smart.vars.work) return
+
+        const emeraldCount = inventory.getCountItem(bot.inventory.slots, "emerald")
+        const stickCount = inventory.getCountItem(bot.inventory.slots, "stick")
+
+        if (!emeraldCount || emeraldCount < 2) await autoRepaitAnvil.buyEmerald(bot)
+        if (!stickCount || stickCount < 2) return func.output("Не, ну это пиздец! У бота блять палок нету. Короче пиздец, дай ему палки", "ПРОВЕРКА-ПАЛОК")
+
+        bot.chat("/crafts")
+        //await window.waitToChangeCountSlot(bot, 10000)
+
+        await window.waitToSlot(bot, 41, "emerald", 10000)
+        await window.click(bot, 41)
+
+        await window.waitToSlot(bot, 23, "diamond_sword", 10000)
+        await window.click(bot, 23)
+
+        await window.waitToSlot(bot, 31, "diamond_hoe", 10000)
+        await window.click(bot, 31)
+
+        await window.waitToSlot(bot, 26, "crafting_table", 10000)
+        await window.click(bot, 26)
+        await func.delay(2000)
+        bot.closeWindow(bot.currentWindow)
+        await func.delay(1000)
+
+    },
+
+    /**
+     * Покупает изумрду в /shop
+     * @param {import("mineflayer").Bot} bot
+     * @returns {Promise<void>}
+     */
+    buyEmerald: async (bot) => {
+        if (!bot.smart.vars.work) return
+
+
+
+        bot.chat("/shop")
+
+        await window.waitToSlot(bot, 21, "gold_ingot", 10000)
+        await window.click(bot, 21)
+
+        await window.waitToSlot(bot, 21, "knowledge_book")
+        await window.shiftClick(bot, 23)
+
+        await func.delay(200)
+
+        bot.closeWindow(bot.currentWindow)
+
+        await func.delay(200)
+
+    },
+
+    /**
+     * Объединяет 2 предмета в наковальне
+     * @param {import('mineflayer').Bot} bot
+     * @param item1
+     * @param item2
+     */
+    joinInAnvil: async (bot, item1, item2) => {
+        if (!bot.smart.vars.work) return
+
+        await func.delay(300)
+
+        if (bot.currentWindow?.slots?.length !== 39) return restart.default(bot, "Не открылся КС! Вероятно, у бота пинг")
+        if (!item1 || !item2) return restart.default(bot, "Неверно передан предмет!")
+
+
+        window.shiftClick(bot, item1.slot)
+        await func.delay(500)
+
+        window.shiftClick(bot, item2.slot)
+        await func.delay(500)
+
+        window.shiftClick(bot, 2)
+        await func.delay(1000)
+
+        bot.closeWindow(bot.currentWindow)
+        await func.delay(1000)
+
+    },
+
+    /**
+     *
+     * @param {import('mineflayer').Bot} bot
+     * @returns {Promise<void>}
+     */
+    repairTool: async (bot) => {
+        if (!bot.smart.vars.work) return
+        const yaw = bot.entity.yaw
+        const pitch = bot.entity.pitch
+        await bot.look(3.726644004499725, 0.09948431331170005)
+        await func.delay(500)
+        await autoRepaitAnvil.rubbish(bot)
+        await func.delay(500)
+
+        await bot.look(yaw, pitch)
+        await func.delay(500)
+        await func.delay(300)
+
+        let brokenTool = tools.findBrokenOrigTools(bot.inventory.slots)
+
+        if (!brokenTool) {
+
+            await autoRepaitAnvil.swapToolsCS(bot)
+            await autoRepaitAnvil.repairTool(bot)
+            return
+        }
+        if (brokenTool.name === "diamond_axe") {
+            if(!tools.findEmeraldTools(bot.inventory.slots).axe) await autoRepaitAnvil.craftEmeraldAxe(bot)
+
+            const anvil = autoRepaitAnvil.findAnvil(bot)
+
+            if (!anvil) return restart.default("Наковальня не найдена!")
+            await bot.openAnvil(anvil)
+
+            await func.delay(300)
+
+            if (!bot.currentWindow) {
+                await func.delay(5000)
+                return
+            }
+
+            brokenTool = tools.findBrokenOrigTools(bot.currentWindow.slots)
+            const emeraldTool = tools.findEmeraldTools(bot.currentWindow.slots).axe
+
+            if (!brokenTool || !emeraldTool) {
+                await func.delay(1000)
+                bot.closeWindow(bot.currentWindow)
+                await func.delay(1000)
+
+                return
+            }
+
+            await autoRepaitAnvil.joinInAnvil(bot, emeraldTool, brokenTool)
+
+        }
+
+        if (brokenTool.name === "diamond_hoe") {
+            if(!tools.findEmeraldTools(bot.inventory.slots).hoe) await autoRepaitAnvil.craftEmeraldHoe(bot)
+
+            const anvil = autoRepaitAnvil.findAnvil(bot)
+
+            if (!anvil) return restart.default("Наковальня не найдена!")
+
+            await bot.openAnvil(anvil)
+
+            await func.delay(300)
+
+            if (!bot.currentWindow) {
+                await func.delay(5000)
+                return
+            }
+
+            brokenTool = tools.findBrokenOrigTools(bot.currentWindow.slots)
+            const emeraldTool = tools.findEmeraldTools(bot.currentWindow.slots).hoe
+            if (!brokenTool || !emeraldTool) {
+                await func.delay(2000)
+                bot.closeWindow(bot.currentWindow)
+                await func.delay(2000)
+
+                return
+            }
+            await autoRepaitAnvil.joinInAnvil(bot, emeraldTool, brokenTool)
+
+        }
+    }
+}
+
+export default autoRepaitAnvil
+import func from "../../Bots utils/function.js"
+import inventory from "../../Bots utils/inventory.js"
+import window from "../../Bots utils/window.js"
+import item from "../../Bots utils/item.js";
+import attack from "../../Bots utils/attack.js";
+
+import autoListva from "../AutoThree/OneThreeSmartBot/autoListva.js";
+import threeDig from "../AutoThree/OneThreeSmartBot/threeDig.js";
+
+const farmerExp = {
+
+    checkRepairEnch: (item) => {
+        if (!bot.smart.vars.work) return
+
+    },
+
+
+    /**
+     * Берет сломанные предметы из клана и кладет починеные
+     * @param {import('mineflayer').Bot} bot
+     * @returns {Promise<>}
+     */
+    swapClanStorage: async (bot) => {
+        if (!bot.smart.vars.work) return
+
+        bot.chat("/clan storage")
+        await window.waitToChangeCountSlot(bot, 10000)
+
+        if (!bot.currentWindow) return
+
+        const allHoe = inventory.getAllSlotsItem(bot.currentWindow.slots, "netherite_hoe", 0, 90)
+        const allAxe = inventory.getAllSlotsItem(bot.currentWindow.slots, "netherite_axe", 0, 90)
+        const allTools = allAxe.concat(allHoe)
+
+        if (allTools.length === 0) return
+
+        for (const tool of allTools) {
+            const percentDurability = item.getDurability.percent(tool)
+
+            if (!percentDurability) continue
+
+            if (percentDurability > 90 && tool.slot > 53) {
+                window.shiftClick(bot, tool.slot)
+                await func.delay(200)
+            }
+
+            if (percentDurability <= 90 && tool.slot <= 53) {
+                window.shiftClick(bot, tool.slot)
+                await func.delay(200)
+            }
+        }
+
+        bot.closeWindow(bot.currentWindow)
+        await func.delay(200)
+
+    },
+
+    /**
+     * Экипирует первый сломанный предмет в инвентаре в левую руку
+     * @param {import('mineflayer').Bot} bot
+     * @returns {Promise<>}
+     */
+    swapToolToOffHand: async (bot) => {
+        if (!bot.smart.vars.work) return
+
+        if (bot.currentWindow) return
+
+        const offHandItem = bot.inventory.slots[45]
+
+        if (item.getDurability.percent(offHandItem) < 95) return
+
+        const allHoe = inventory.getAllSlotsItem(bot.inventory.slots, "netherite_hoe")
+        const allAxe = inventory.getAllSlotsItem(bot.inventory.slots, "netherite_axe")
+        const allTools = allAxe.concat(allHoe)
+
+        if (allTools.length === 0) return
+
+        for (const tool of allTools) {
+            if (item.getDurability.percent(tool) < 90) {
+                await bot.equip(tool, "off-hand")
+                return
+            }
+        }
+    },
+
+    /**
+     * Убирает инструмент из левой руки если он починен
+     * @param {import('mineflayer').Bot} bot
+     * @returns {Promise<>}
+     */
+    swapIfRepaired: async (bot) => {
+        if (!bot.smart.vars.work) return
+
+        if (bot.currentWindow) return
+
+        const offHandItem = bot.inventory.slots[45]
+
+        if (!offHandItem) return
+
+        if (item.getDurability.percent(offHandItem) < 95) return
+
+        await bot.unequip("off-hand")
+
+
+    },
+
+    /**
+     * Ждет, пока починится предмет в левой руке
+     * @param bot
+     * @returns {Promise<void>}
+     */
+    waitToRepair: async (bot) => {
+        if (!bot.smart.vars.work) return
+
+        let offHandItem = bot.inventory.slots[45]
+        while (item.getDurability.percent(offHandItem) < 95) await func.delay(500)
+    },
+
+    /**
+     * Ищет сломанные предметы
+     * @param bot
+     * @returns
+     */
+    checkBrokenTools: (bot) => {
+        if (!bot.smart.vars.work) return
+
+        if (bot.currentWindow) return
+
+        for (const tool of bot.inventory.slots) {
+            if (item.getDurability.percent(tool) < 95) return true
+        }
+        return false
+    },
+
+    /**
+     * Ищет починенные предметы
+     * @param bot
+     * @returns
+     */
+    checkNormalTools: (bot) => {
+        if (!bot.smart.vars.work) return
+
+        if (bot.currentWindow) return
+
+        for (const tool of bot.inventory.slots) {
+            if (item.getDurability.percent(tool) >= 95) return true
+        }
+        return false
+    },
+
+    /**
+     * Чинит все сломанные предметы в инвентаре
+     * @param {import('mineflayer').Bot} bot
+     * @returns {Promise<void>}
+     */
+    repairAll: async (bot) => {
+        if (!bot.smart.vars.work) return
+
+        while (farmerExp.checkBrokenTools(bot)) {
+            await farmerExp.swapToolToOffHand(bot)
+            await farmerExp.waitToRepair(bot)
+            await farmerExp.swapIfRepaired(bot)
+            await func.delay(1000)
+        }
+        await farmerExp.swapClanStorage(bot)
+        await func.delay(10000)
+    },
+
+    /**
+     * Чинит все инструменты до выключения
+     * @param bot
+     * @param status
+     * @returns {Promise<void>}
+     */
+    repairBot: async (bot, status) => {
+        if (!bot.smart.vars.work) return
+
+        if (bot.smart.vars.script.auto_repair && status === false) bot.smart.vars.script.auto_repair = false
+        else if (!bot.smart.vars.script.auto_repair && status === true) bot.smart.vars.script.auto_repair = true
+        else return
+
+        while (bot.smart.vars.script.auto_repair) await farmerExp.repairAll(bot)
+    }
+
+}
+
+export default farmerExp
+import func from "../../../Bots utils/function.js"
+import inventory from "../../../Bots utils/inventory.js"
+import window from "../../../Bots utils/window.js"
+import item from "../../../Bots utils/item.js";
+import repairS from "./repairСS.js";
+import threeTools from "./tools.js";
+import repairCS from "./repairСS.js";
+import autoInvisible from "../../../Bots utils/Funtime utils/autoInvisible.js";
+import restart from "../../../Bots utils/Funtime utils/restart.js";
+
+const autoListva = {
+
+
+    zapretRubbish: [
+        "diamond_axe",
+        "diamond_hoe",
+        "emerald",
+        "potion",
+        "cherry_sapling",
+        "cooked_porkchop"
+    ],
+
+    /**
+     *
+     * @param {import('mineflayer').Bot} bot
+     * @returns {Promise<void>}
+     */
+    rubbish: async (bot) => {
+        if (!bot.smart.vars.work) return
+
+        await func.delay(300)
+
+        for (const slot of bot.inventory.slots) {
+            if (!slot || autoListva.zapretRubbish.includes(slot?.name)) continue
+            //if (inventory.getCountItem(bot.inventory.slots, "stick") < 200) continue
+            //if (inventory.getCountItem(bot.inventory.slots, "cherry_sapling") < 51) continue
+            await bot.tossStack(slot)
+            await func.delay(500)
+        }
+    },
+
+    /**
+     *
+     * @param {import('mineflayer').Bot} bot
+     */
+    findListva: async (bot) => {
+        if (!bot.smart.vars.work) return
+
+        let block = undefined
+
+
+        for (let m = 1; m < 5; m++) {
+            for (let i = 0-m; i < m+1; i++) {
+                for (let j = 0-m; j < m+1; j++) {
+                    for (let k = 0-m; k < m+1; k++) {
+                        if (inventory.getCountItem(bot.inventory.slots, "cherry_sapling") > 48) await autoListva.putSeedlingInCS(bot)
+                        block = bot.blockAt(bot.entity.position.floored().offset(j, k, i))
+                        if (!bot.canDigBlock(block)) continue
+                        if (j === 0 && k === -1 && i === 0) continue
+                        if (block?.name === "cherry_leaves") return block
+                    }
+                }
+            }
+        }
+    },
+
+    /**
+     *
+     * @param {import('mineflayer').Bot} bot
+     */
+    equipHoe: async (bot) => {
+        if (!bot.smart.vars.work) return
+
+        const hoe = threeTools.findOrigTools(bot.inventory.slots).hoe
+
+
+        if (!hoe) {
+            await func.delay(10000)
+            await repairCS.swapToolCS(bot, "diamond_hoe")
+            return
+        }
+        if (item.getDurability.unit(hoe) < 100) {
+
+            await repairS.swapToolCS(bot, "diamond_hoe")
+            return await autoListva.equipHoe(bot)
+        }
+
+        await inventory.equipHand(bot, hoe)
+        if (bot.heldItem.name !== "diamond_hoe") return await autoListva.equipHoe(bot)
+
+    },
+
+    /**
+     *
+     * @param {import('mineflayer').Bot} bot
+     * @returns {Promise<void>}
+     */
+    breakListva: async (bot) => {
+        if (!bot.smart.vars.work) return
+        await func.delay(100)
+
+
+        let listvaBlock = await autoListva.findListva(bot)
+
+        while (listvaBlock) {
+            await autoInvisible.drinkIfTime(bot, 31)
+            await autoListva.equipHoe(bot)
+            await bot.dig(listvaBlock, true).catch(() => {})
+
+            await func.delay(50)
+            listvaBlock = await autoListva.findListva(bot)
+
+        }
+    },
+
+    /**
+     *
+     * @param {import('mineflayer').Bot} bot
+     * @returns {Promise<void>}
+     */
+    putSeedlingInCS: async (bot) => {
+        if (!bot.smart.vars.work) return
+
+        await func.delay(300)
+        let seedling = inventory.getSlotItem(bot.inventory.slots, "cherry_sapling")
+
+        if (!seedling) return
+
+        bot.chat("/clan storage")
+        await window.waitToChangeCountSlot(bot, 10000)
+
+        if (!bot.currentWindow) return
+
+        const stick = inventory.getSlotItem(bot.currentWindow.slots.slice(54), "stick")
+        if (inventory.getCountItem(bot.currentWindow.slots.slice(1, 54), "stick") < 200 && stick) {
+
+            window.shiftClick(bot, stick.slot)
+            await func.delay(700)
+        }
+
+        seedling = inventory.getSlotItem(bot.currentWindow?.slots, "cherry_sapling", 53, 89)
+        if (!seedling) return restart.default(bot)
+        if (inventory.getCountItem(bot.currentWindow.slots.slice(0, 54), "cherry_sapling") < 300) window.shiftClick(bot, seedling.slot)
+
+        await func.delay(500)
+
+        bot.closeWindow(bot.currentWindow)
+
+        await func.delay(1000)
+        if (inventory.getCountItem(bot.inventory.slots, "stick") < 300) return
+        await bot.look(3.726644004499725, 0.09948431331170005)
+        await func.delay(1000)
+        await autoListva.rubbish(bot)
+        await func.delay(1000)
+
+    }
+
+
+}
+
+export default autoListva
+import func from "../../../Bots utils/function.js"
+import inventory from "../../../Bots utils/inventory.js"
+import window from "../../../Bots utils/window.js"
+import threeTools from "./tools.js";
+
+const threeBoneMeal = {
+    /**
+     *
+     * @param {import('mineflayer').Bot} bot
+     * @returns {Promise<void>}
+     */
+    equipBoneMeal: async (bot) => {
+        if (!bot.smart.vars.work) return
+
+        const boneMealSlot = inventory.getSlotItem(bot.inventory.slots, "bone_meal")
+
+        if (!boneMealSlot) return await threeBoneMeal.craftBoneMeal(bot)
+
+        await inventory.equipHand(bot, boneMealSlot)
+    },
+
+    /**
+     *
+     * @param {import('mineflayer').Bot} bot
+     * @returns {Promise<void>}
+     */
+    craftBoneMeal: async (bot) => {
+        if (!bot.smart.vars.work) return
+
+        const bone = inventory.getSlotItem(bot.inventory.slots, "bone")
+
+        if (!bone) return await threeBoneMeal.collectBoneFromChest(bot)
+
+        window.click(bot, bone.slot)
+        await func.delay(500)
+        window.click(bot, 1)
+        await func.delay(500)
+        window.shiftClick(bot, 0)
+        await func.delay(500)
+
+        return await threeBoneMeal.equipBoneMeal(bot)
+
+    },
+
+    /**
+     *
+     * @param {import('mineflayer').Bot} bot
+     */
+    findChest: (bot) => {
+        if (!bot.smart.vars.work) return
+
+        let block = undefined
+        for (let i = -3; i < 4; i++) {
+            for (let j = -3; j < 4; j++) {
+                for (let k = -3; k < 4; k++) {
+                    block = bot.blockAt(bot.entity.position.floored().offset(i,j,k))
+                    if (block?.name === "chest") return block
+                }
+            }
+        }
+    },
+
+    /**
+     *
+     * @param {import('mineflayer').Bot} bot
+     */
+    collectBoneFromChest: async (bot) => {
+        if (!bot.smart.vars.work) return
+
+        let bone = undefined
+        const chest = threeBoneMeal.findChest(bot)
+
+        if (!chest) {
+            bot.chat("/home chest")
+            await func.delay(8000)
+            return await threeBoneMeal.collectBoneFromChest(bot)
+        }
+
+        await bot.openChest(chest)
+        await func.delay(1000)
+
+        bone = inventory.getSlotItem(bot.currentWindow.slots, "bone", 0, 53, 64)
+        if (!bone) {
+            bot.closeWindow(bot.currentWindow)
+            await func.delay(1000)
+            func.output("Закончились кости в сундуке!", "АВТО-ДЕРЕВО-ПРОВЕРКА-КОСТЕЙ")
+            return await threeBoneMeal.craftBoneMeal(bot)
+        }
+
+        window.shiftClick(bot, bone.slot)
+
+        await func.delay(200)
+
+        bot.closeWindow(bot.currentWindow)
+        await func.delay(1000)
+
+        return await threeBoneMeal.craftBoneMeal(bot)
+    },
+
+    /**
+     *
+     * @param {import('mineflayer').Bot} bot
+     */
+    findSeedling: (bot) => {
+        if (!bot.smart.vars.work) return
+
+        let block = undefined
+        for (let i = -3; i < 4; i++) {
+            for (let j = -3; j < 4; j++) {
+                for (let k = -3; k < 4; k++) {
+                    block = bot.blockAt(bot.entity.position.floored().offset(i,j,k))
+                    if (block?.name === "dark_oak_sapling") return block
+                }
+            }
+        }
+    },
+
+    findAllSeedling: (bot) => {
+        if (!bot.smart.vars.work) return
+        let block = undefined
+        let seepling = []
+        for (let i = -3; i < 4; i++) {
+            for (let j = -3; j < 4; j++) {
+                for (let k = -3; k < 4; k++) {
+                    block = bot.blockAt(bot.entity.position.floored().offset(i,j,k))
+                    if (block?.name === "dark_oak_sapling") seepling.push(block)
+                }
+            }
+        }
+        return seepling
+    },
+
+    /**
+     *
+     * @param {import('mineflayer').Bot} bot
+     * @returns {Promise<void>}
+     */
+    useBoneMeal: async (bot) => {
+        if (!bot.smart.vars.work) return
+        if (threeBoneMeal.findAllSeedling(bot).length !== 4) return
+        await threeBoneMeal.equipBoneMeal(bot)
+        await func.delay(200)
+        let seedling = threeBoneMeal.findSeedling(bot)
+        while (seedling) {
+            await threeBoneMeal.equipBoneMeal(bot)
+
+            await bot.activateBlock(seedling).catch(() => {func.output("Ошибка использования костной муки", "ОШИБКА", true)})
+            await func.delay(200)
+            seedling = threeBoneMeal.findSeedling(bot)
+        }
+    }
+}
+
+export default threeBoneMeal
+import func from "../../../Bots utils/function.js"
+import inventory from "../../../Bots utils/inventory.js"
+import Vec3 from "vec3";
+import threeTools from "./tools.js";
+import window from "../../../Bots utils/window.js";
+import restart from "../../../Bots utils/Funtime utils/restart.js";
+
+
+
+const placeSeedling = {
+    /**
+     *
+     * @param {import('mineflayer').Bot} bot
+     * @param freeUp
+     */
+    findDirt: (bot, freeUp = false) => {
+        if (!bot.smart.vars.work) return
+
+        let blockDirt = undefined
+        let blockUpDirt = undefined
+        let dirt = []
+        for (let i = -3; i < 4; i++) {
+            for (let j = -3; j < 4; j++) {
+                for (let k = -3; k < 4; k++) {
+                    blockDirt = bot.blockAt(bot.entity.position.floored().offset(i,j,k))
+                    blockUpDirt = bot.blockAt(bot.entity.position.floored().offset(i,j+1,k))
+                    if (blockDirt?.name === "dirt" && (!freeUp || blockUpDirt?.name === "air")) dirt.push(blockDirt)
+                }
+            }
+        }
+        return dirt
+    },
+
+    /**
+     *
+     * @param {import('mineflayer').Bot} bot
+     * @returns {Promise<void>}
+     */
+    equipSeedling: async (bot) => {
+        if (!bot.smart.vars.work) return
+
+        const seedlingSlot = inventory.getSlotItem(bot.inventory.slots, "cherry_sapling")
+        if (!seedlingSlot) {
+
+            await placeSeedling.collectSeedlingInCS(bot)
+
+            return await placeSeedling.equipSeedling(bot)
+        }
+        await inventory.equipHand(bot, seedlingSlot)
+    },
+
+    /**
+     *
+     * @param {import('mineflayer').Bot} bot
+     * @returns {Promise<void>}
+     */
+    collectSeedlingInCS: async (bot) => {
+        await func.delay(300)
+        bot.chat("/clan storage")
+        await window.waitToChangeCountSlot(bot, 10000)
+
+        const seedling = inventory.getSlotItem(bot.currentWindow?.slots, "cherry_sapling", 0, 53)
+
+        if (!seedling) return await restart.default(bot, "У бота нету саженцев")
+
+        window.shiftClick(bot, seedling.slot)
+        await func.delay(500)
+
+        bot.closeWindow(bot.currentWindow)
+        await func.delay(1000)
+    },
+
+    /**
+     *
+     * @param {import('mineflayer').Bot} bot
+     */
+    placeSeedingFull: async (bot) => {
+        if (!bot.smart.vars.work) return
+
+        await func.delay(100)
+
+        const dirt = placeSeedling.findDirt(bot, true)
+        if (!dirt) return
+        await placeSeedling.equipSeedling(bot)
+
+        await placeSeedling.placeSeedlingJust(bot, dirt)
+
+        if (placeSeedling.findDirt(bot, true) && placeSeedling.findDirt(bot, true).length > 0) await placeSeedling.placeSeedingFull(bot)
+    },
+
+    /**
+     *
+     * @param {import('mineflayer').Bot} bot
+     * @param blocks
+     */
+    placeSeedlingJust: async (bot, blocks) => {
+        if (!bot.smart.vars.work) return
+
+        for (const block of blocks) {
+            if (bot.heldItem?.name !== "cherry_sapling") {
+
+                await func.delay(1000)
+                return
+            }
+            await bot.placeBlock(block, new Vec3(0,1,0)).catch(() => {})
+            await func.delay(30)
+        }
+    }
+}
+
+export default placeSeedling
+import func from "../../../Bots utils/function.js"
+import inventory from "../../../Bots utils/inventory.js"
+import window from "../../../Bots utils/window.js"
+import use from "../../../Bots utils/use.js"
+import item from "../../../Bots utils/item.js";
+import autoRubbish from "./rubbish.js";
+import autoListva from "./autoListva.js";
+import threeTools from "./tools.js";
+import restart from "../../../Bots utils/Funtime utils/restart.js";
+import tools from "./tools.js";
+
+
+const repairCS = {
+
+    /**
+     *
+     * @param {import('mineflayer').Bot} bot
+     * @param nameTool
+     * @returns {Promise<void>}
+     */
+    swapToolCS: async (bot, nameTool) => {
+        if (!bot.smart.vars.work) return
+        await func.delay(300)
+
+        let brokenOrigTool = tools.findBrokenOrigTools(bot.inventory.slots)
+        let normalOrigTool = tools.findAllNormalOrigTools(bot.inventory.slots)
+
+        if (!brokenOrigTool && normalOrigTool.length !== 0) return
+
+        bot.chat("/clan storage")
+        await window.waitToChangeCountSlot(bot, 10000)
+
+        if (!bot.currentWindow) return restart.default(bot, "Не открылся КС! Вероятно, у бота пинг")
+
+        brokenOrigTool = tools.findBrokenOrigTools(bot.currentWindow.slots.slice(54))
+        let normalOrigToolCS = tools.findAllNormalOrigTools(bot.currentWindow.slots.slice(0,54)).find(el => el.name === nameTool)
+
+        await func.delay(300)
+        if (brokenOrigTool) {
+            window.shiftClick(bot, brokenOrigTool.slot)
+            await func.delay(700)
+        }
+
+        if (normalOrigTool.length === 0 && normalOrigToolCS) {
+            window.shiftClick(bot, normalOrigToolCS.slot)
+            await func.delay(700)
+        }
+
+        await func.delay(500)
+        bot.closeWindow(bot.currentWindow)
+        await func.delay(1000)
+    }
+
+
+}
+
+export default repairCS
+import func from "../../../Bots utils/function.js"
+import window from "../../../Bots utils/window.js"
+import inventory from "../../../Bots utils/inventory.js"
+import item from "../../../Bots utils/item.js";
+
+const threeRubbish = {
+
+    needItems: ["diamond_axe", "diamond_hoe", "stick", "emerald", "dark_oak_sapling", "bone", "bone_meal", "cooked_porkchop"],
+
+    /**
+     *
+     * @param {import('mineflayer').Bot} bot
+     * @returns {Promise<void>}
+     */
+    anotherRubbish: async (bot) => {
+        for (let item of bot.inventory.slots) {
+            if (!item || threeRubbish.needItems.includes(item.name)) continue
+            else await bot.tossStack(item)
+        }
+    },
+
+    /**
+     *
+     * @param {import('mineflayer').Bot} bot
+     * @returns {Promise<void>}
+     */
+    rubbishStick: async (bot) => {
+        while (inventory.getAllSlotsItem(bot.inventory.slots, "stick").length > 2) {
+            await bot.tossStack(inventory.getSlotItem(bot.inventory.slots, "stick"))
+            await func.delay(300)
+        }
+    },
+
+    lookToRubbish: async (bot) => {
+        await func.delay(500)
+        await bot.look(3.145457432963716, 0.303684320422398)
+        await func.delay(500)
+    },
+
+    allRubbish: async (bot) => {
+        await threeRubbish.lookToRubbish(bot)
+        await threeRubbish.anotherRubbish(bot)
+        await threeRubbish.rubbishStick(bot)
+
+    }
+
+}
+
+export default threeRubbish
+import func from "../../../Bots utils/function.js"
+import inventory from "../../../Bots utils/inventory.js"
+import item from "../../../Bots utils/item.js"
+import window from "../../../Bots utils/window.js"
+import repairS from "./repairСS.js"
+import threeTools from "./tools.js";
+import repairCS from "./repairСS.js";
+
+const threeDig = {
+
+    /**
+     *
+     * @param {import('mineflayer').Bot} bot
+     * @returns {Block}
+     */
+    findThree: (bot) => {
+        if (!bot.smart.vars.work) return
+
+        let block = undefined
+        for (let i = -3; i < 1; i++) {
+            for (let j = -3; j < 4; j++) {
+                for (let k = -3; k < 4; k++) {
+                    block = bot.blockAt(bot.entity.position.floored().offset(j,i,k))
+                    if (block?.name === "cherry_log") return block
+                }
+            }
+        }
+    },
+
+    /**
+     *
+     * @param {import('mineflayer').Bot} bot
+     * @returns {Promise<void>}
+     */
+    equipAxe: async (bot) => {
+        if (!bot.smart.vars.work) return
+
+        const axe = threeTools.findOrigTools(bot.inventory.slots).axe
+
+        if (!axe) {
+            await func.delay(10000)
+            await repairCS.swapToolCS(bot, "diamond_axe")
+            return await threeDig.equipAxe(bot)
+        }
+
+        if (item.getDurability.unit(axe) < 450) {
+
+            await repairS.swapToolCS(bot, "diamond_axe")
+            return await threeDig.equipAxe(bot)
+        }
+
+        await inventory.equipHand(bot, axe)
+        await func.delay(500)
+
+        if (bot.heldItem?.name !== "diamond_axe") {
+            return await threeDig.equipAxe(bot)
+
+        }
+    },
+
+    /**
+     *
+     * @param {import('mineflayer').Bot} bot
+     * @returns {Promise<void>}
+     */
+    digThree: async (bot) => {
+        if (!bot.smart.vars.work) return
+        await func.delay(100)
+
+        let threeBlock = threeDig.findThree(bot)
+        while(threeBlock) {
+
+            if (!threeBlock) return
+
+            await threeDig.equipAxe(bot)
+            await bot.dig(threeBlock, true)
+            await func.delay(500)
+            threeBlock = threeDig.findThree(bot)
+        }
+        //await func.delay(2000)
+    },
+
+
+    /**
+     *
+     * @param {import('mineflayer').Bot} bot
+     * @returns {Promise<void>}
+     */
+    saveItem: async (bot) => {
+        while (bot.smart.vars.work) {
+
+            if (item.getDurability.unit(bot.heldItem) < 300) {
+                if (bot.quickBarSlot !== 4) bot.setQuickBarSlot(8-bot.quickBarSlot)
+                else bot.setQuickBarSlot(2)
+                //func.output("Засейвил топор! Саня красавчик")
+                await func.delay(500)
+            }
+            await func.delay(100)
+        }
+    }
+
+
+
+
+}
+
+export default threeDig
+import func from "../../../Bots utils/function.js"
+import inventory from "../../../Bots utils/inventory.js"
+import item from "../../../Bots utils/item.js"
+import window from "../../../Bots utils/window.js"
+
+
+const threeTools = {
+
+    findOrigTools: (slots) => {
+        if (!slots) return
+
+        return {
+            //axe: slots.find(axe => axe?.components[4]?.data?.enchantments?.map(el => el?.id).find(el => el === 39) && axe?.name === "diamond_axe"),
+            axe: slots.find(axe => axe?.componentMap?.get('enchantments')?.data?.enchantments?.find(el => el?.id === 39) && axe?.name === "diamond_axe"),
+            hoe: slots.find(axe => axe?.componentMap?.get('enchantments')?.data?.enchantments?.find(el => el?.id === 39) && axe?.name === "diamond_hoe")
+
+        }
+    },
+    findEmeraldTools: (slots) => {
+        if (!slots) return
+
+        return {
+            axe: slots.find(axe => axe?.name === "diamond_axe" && item.getEnchant(axe).length === 1),
+            hoe: slots.find(hoe => hoe?.name === "diamond_hoe" && item.getEnchant(hoe).length === 1),
+        }
+    },
+
+    findAllOrigTools: (slots) => {
+        if (!slots) return
+
+        return {
+            axe: slots.filter(axe => axe?.componentMap?.get('enchantments')?.data?.enchantments?.find(el => el?.id === 39) && axe?.name === "diamond_axe"),
+            hoe: slots.filter(axe => axe?.componentMap?.get('enchantments')?.data?.enchantments?.find(el => el?.id === 39) && axe?.name === "diamond_hoe")
+
+        }
+    },
+
+    findBrokenOrigTools: (slots) => {
+        if (!slots) return
+        return slots.find(axe => axe?.componentMap?.get('enchantments')?.data?.enchantments?.find(el => el?.id === 39) && item.getDurability.unit(axe) < 450)
+    },
+    findNormalOrigTool: (slots) => {
+        if (!slots) return
+
+        return slots.find(axe => axe?.componentMap?.get('enchantments')?.data?.enchantments?.find(el => el?.id === 39) && !(item.getDurability.unit(axe) < 450))
+    },
+    findAllNormalOrigTools: (slots) => {
+        if (!slots) return
+
+        return slots.filter(axe => axe?.componentMap?.get('enchantments')?.data?.enchantments?.find(el => el?.id === 39) && !(item.getDurability.unit(axe) < 450))
+    }
+
+}
+
+export default threeTools
+import func from '../../Bots utils/function.js'
+import digCB from './dig.js'
+import placeCB from './place.js'
+
+const clickerCB = {
+    clickerEvent: async (bot, ms = 10) => {
+        if (bot.smart.vars.script.cocoa_beans.clicker.dig) {
+            //await digCB.digAllKaka(bot, ms)
+            await digCB.digAllKakaNew(bot, ms).catch(err => {})
+        }
+        if (bot.smart.vars.script.cocoa_beans.clicker.place) {
+            await placeCB.placeAllNew(bot, ms).catch(err => {})
+        }
+        setTimeout(clickerCB.clickerEvent, 10, bot)
+    },
+    dig: {
+        start: (bot) => {
+            bot.smart.vars.script.cocoa_beans.clicker.dig = true
+        },
+        stop: (bot) => {
+            bot.smart.vars.script.cocoa_beans.clicker.dig = false
+
+        },
+    },
+    place: {
+        start: (bot) => {
+            bot.smart.vars.script.cocoa_beans.clicker.place = true
+        },
+        stop: (bot) => {
+            bot.smart.vars.script.cocoa_beans.clicker.place = false
+
+        },
+    }
+}
+
+
+export default clickerCB
+import digBlock from "../../Bots utils/digBlock.js";
+import func from '../../Bots utils/function.js'
+import item from "../../Bots utils/item.js"
+
+const digCB = {
+    /**
+     * Пакеты на расстановку (сразу 2 по 4)
+     * @param {import('mineflayer').Bot} bot
+     * @param ms
+     * @returns {Promise<void>}
+     */
+    digAllKaka: async (bot, ms = 10) => {
+
+
+        digCB.digKaka(bot, bot.blockAt(bot.entity.position.offset(0, 2, 0)), 0, 10)
+        await func.delay(ms + 10)
+
+        digCB.digKaka(bot, bot.blockAt(bot.entity.position.offset(0, 3, 0)), 0, 10)
+        await func.delay(ms + 10)
+
+        digCB.digKaka(bot, bot.blockAt(bot.entity.position.offset(0, 4, 0)), 0, 10)
+        await func.delay(ms + 10)
+
+        digCB.digKaka(bot, bot.blockAt(bot.entity.position.offset(0, 5, 0)), 0, 10)
+        await func.delay(ms + 10)
+        //bot.digBlock(bot.bot.blockAt(bot.bot.entity.position.offset(0, 6, 0)), 0, 10)
+        //await bot.waitSec(ms + 10)
+        digCB.digKaka(bot, bot.blockAt(bot.entity.position.offset(0, 2, -1)), 0, 10)
+        await func.delay(ms + 10)
+
+        digCB.digKaka(bot, bot.blockAt(bot.entity.position.offset(0, 3, -1)), 0, 10)
+        await func.delay(ms + 10)
+
+        digCB.digKaka(bot, bot.blockAt(bot.entity.position.offset(0, 4, -1)), 0, 10)
+        await func.delay(ms + 10)
+
+        digCB.digKaka(bot, bot.blockAt(bot.entity.position.offset(0, 5, -1)), 0, 10)
+        await func.delay(ms + 10)
+
+    },
+
+
+    /**
+     * Пакеты на расстановку (1 по 4)
+     * @param {import('mineflayer').Bot} bot
+     * @param ms
+     * @returns {Promise<void>}
+     */
+    digAllKakaNew: async (bot, ms = 10) => {
+
+        digCB.digKaka(bot, bot.blockAt(bot.entity.position.offset(0, 2, 0)), 0, 10)
+        await func.delay(ms + 10)
+
+        digCB.digKaka(bot, bot.blockAt(bot.entity.position.offset(0, 3, 0)), 0, 10)
+        await func.delay(ms + 10)
+
+        digCB.digKaka(bot, bot.blockAt(bot.entity.position.offset(0, 4, 0)), 0, 10)
+        await func.delay(ms + 10)
+
+        digCB.digKaka(bot, bot.blockAt(bot.entity.position.offset(0, 5, 0)), 0, 10)
+        await func.delay(ms + 10)
+
+    },
+
+
+    /**
+     *
+     * @param {import('mineflayer').Bot} bot
+     * @param block
+     * @param face
+     * @param time
+     */
+    digKaka: (bot, block, face, time = 10) => {
+        //if(!bot.heldItem) return func.output("бот ничего не держит в руке!", "ЛОМАНИЕКАКА", true)
+        if(block?.name === "cocoa_beans" && block._properties?.age !== 3) return func.output("здесь НЕ какао боб или он не вырос", "ЛОМАНИЕКАКА", true) //Отклоняем ломание, если какао боб не вырос/его нет
+        //if(bot.heldItem.name.includes("axe") && item.getDurability.unit(bot.heldItem) < 5) return func.output("топор почти сломалмся!", "ЛОМАНИЕКАКА", true)//Отклоняем ломание, если на топоре мало прочности
+        //if(!bot.heldItem.name.includes("axe")) return func.output("бот держит НЕ топор в руке", "ЛОМАНИЕКАКА", true)//Отклоняем ломание, если в руке не топор
+        digBlock(bot, block, face, time) //Отправка пакета
+    }
+}
+
+export default digCB
+import placeBlock from "../../Bots utils/placeBlock.js"
+import func from "../../Bots utils/function.js"
+
+const placeCB = {
+    placeOne: (bot, block, face) => {
+
+        let cx = 0, cy = 0, cz = 0
+        const pos = bot.entity.position
+//Отклоняем расстановку блока, если там уже есть блок (или если блок не найден)
+        if (![4, 5, 0].includes(face)) return
+        const blockCheck = bot.blockAt(block?.position?.offset(-1, 0, 0))?.name
+
+        if (face === 4 && blockCheck !== "air" || !block) return
+        const blockCheck1 = bot.blockAt(block?.position?.offset(1, 0, 0))?.name
+        if (face === 5 && blockCheck1 !== "air" || !block) return
+        const blockCheck2 = bot.blockAt(block?.position?.offset(0, -1, 0))?.name
+        if (face === 0 && blockCheck2 !== "air" || !block) return
+
+//Отклоняем расстановку блока, если нет блока, о который можно опереться (или если блок не найден)
+        if ((block?.name !== "jungle_wood" && block?.name !== "jungle_log") && (face === 4 || face === 5)) return
+        if ((bot.blockAt(block?.position?.floored().offset(0, -1, -1))?.name !== "jungle_wood"
+                && bot.blockAt(block?.position?.floored().offset(0, -1, -1))?.name !== "jungle_log")
+            && (bot.blockAt(block?.position?.floored().offset(0, -1, 1))?.name !== "jungle_wood"
+                && bot.blockAt(block?.position?.floored().offset(0, -1, 1))?.name !== "jungle_log")
+            && face === 0) return
+
+//if (face === 0 && block?.name !== "cocoa") return console.log(6)
+
+        if (face === 0 && block?.name === "cocoa") {
+            cx = Math.abs(pos.x - pos.floored().x)
+            cy = 0.4375
+            cz = Math.abs(pos.z - pos.floored().z)
+        } else {
+            cx = Math.abs(pos.x - pos.floored().x)
+            cy = 0
+            cz = Math.abs(pos.z - pos.floored().z)
+        }
+        if (face === 4) {
+            cx = 0
+            cy = 0.5
+            cz = Math.abs(pos.z - pos.floored().z)
+        }
+        if (face === 5) {
+            cx = 1
+            cy = 0.5
+            cz = Math.abs(pos.z - pos.floored().z)
+        }
+
+        placeBlock(bot, block, face, "cocoa_beans", cx, cy, cz)
+    },
+    placeAll: async (bot, ms) => {
+        placeCB.placeOne(bot, bot.blockAt(bot.entity.position.offset(0, 6, 0)), 0)
+        await func.delay(ms)
+        placeCB.placeOne(bot, bot.blockAt(bot.entity.position.offset(0, 5, 0)), 0)
+        await func.delay(ms)
+        placeCB.placeOne(bot, bot.blockAt(bot.entity.position.offset(0, 4, 0)), 0)
+        await func.delay(ms)
+        placeCB.placeOne(bot, bot.blockAt(bot.entity.position.offset(0, 3, 0)), 0)
+        await func.delay(ms)
+
+
+        placeCB.placeOne(bot, bot.blockAt(bot.entity.position.offset(0, 6, -1)), 0)
+        await func.delay(ms)
+        placeCB.placeOne(bot, bot.blockAt(bot.entity.position.offset(0, 5, -1)), 0)
+        await func.delay(ms)
+        placeCB.placeOne(bot, bot.blockAt(bot.entity.position.offset(0, 4, -1)), 0)
+        await func.delay(ms)
+        placeCB.placeOne(bot, bot.blockAt(bot.entity.position.offset(0, 3, -1)), 0)
+        await func.delay(ms)
+
+    },
+
+    placeAllNew: async (bot, ms) => {
+        placeCB.placeOne(bot, bot.blockAt(bot.entity.position.offset(0, 6, 0)), 0)
+        await func.delay(ms)
+        placeCB.placeOne(bot, bot.blockAt(bot.entity.position.offset(0, 5, 0)), 0)
+        await func.delay(ms)
+        placeCB.placeOne(bot, bot.blockAt(bot.entity.position.offset(0, 4, 0)), 0)
+        await func.delay(ms)
+        placeCB.placeOne(bot, bot.blockAt(bot.entity.position.offset(0, 3, 0)), 0)
+        await func.delay(ms)
+    }
+}
+
+export default placeCB
+import item from "../../Bots utils/item.js"
+import func from "../../Bots utils/function.js"
+import inventory from "../../Bots utils/inventory.js"
+import window from "../../Bots utils/window.js";
+
+
+const repairAxe = {
+    /**
+     * Проверить, что прочность на незеритовом топоре выше определенного процента
+     * @param bot
+     * @param minPercent
+     * @returns {boolean}
+     */
+    axeCheckDur: (bot, minPercent) => {
+        const netheriteAxe = inventory.getSlotItem(bot.inventory.slots,"netherite_axe")
+        if (netheriteAxe) {
+
+            return item.getDurability.percent(netheriteAxe) >= minPercent
+        }
+        else {
+            func.output("Топор отсутствует в инвентаре!", "ПРОВЕРКА-ПРОЧНОСТИ")
+            return false
+        }
+    },
+
+
+    /**
+     * Функция для находления опыта в окне/инвентаре
+     * @param bot
+     */
+    findExp: (bot) => {
+        return inventory.getSlotItem(bot.inventory.slots,"experience_bottle")
+    },
+
+    /**
+     * Функция для использования 1 стака опыта
+     * @param {import('mineflayer').Bot} bot
+     */
+    useSlotExp: async (bot) => {
+        while (bot.heldItem?.name === "experience_bottle") {
+            bot.activateItem()
+            await func.delay(10)
+        }
+    },
+
+
+    /**
+     * Функция для починки топора на 1 стак опыта
+     * @param {import('mineflayer').Bot} bot
+     * @returns {Promise<void>}
+     */
+    repairOneStack: async (bot) => {
+        //Ищем топор в инвентаре
+        const axe = inventory.getSlotItem(bot.inventory.slots,"netherite_axe")
+        if (!axe) return func.output("Топор не найден в инвентаре!", "ОШИБКА")
+
+        //Берем топор в левую руку
+        await window.swapItem(bot, axe.slot, 45)
+
+        //Открытие /clan storage
+        bot.chat("/clan storage")
+        await window.waitToChangeCountSlot(bot)
+
+        //Ищем опыт
+        const exp = inventory.getSlotItem(bot.currentWindow.slots,"experience_bottle", 0, 89)
+
+        //Свапаем с активной рукой
+        await window.swapItem(bot, exp.slot, bot.quickBarSlot+81)
+
+        //Закрываем окно
+        bot.closeWindow(bot.currentWindow)
+
+        //Используем опыт, пока не закончится
+        await repairAxe.useSlotExp(bot)
+        await func.delay(500)
+        //Возвращаем топор в место, где он и был
+        await window.swapItem(bot, 45, 36)//1 хотбар
+        await func.delay(500)
+
+    },
+
+
+    /**
+     * Функция для починки топора до определенного процента
+     * @param {import('mineflayer').Bot} bot
+     * @param percent
+     * @returns {Promise<void>}
+     */
+    repairToPercent: async (bot, percent = 50) => {
+        let axe = inventory.getSlotItem(bot.inventory.slots,"netherite_axe")
+        while (item.getDurability.percent(axe) < percent) {
+
+            await repairAxe.repairOneStack(bot)
+            await func.delay(1000)
+            axe = inventory.getSlotItem(bot.inventory.slots,"netherite_axe")
+
+        }
+    }
+
+}
+
+
+export default repairAxe;
+import move from "../../Bots utils/move.js"
+import func from "../../Bots utils/function.js"
+import clickerCB from "./clicker.js"
+import translator from "../../Bots utils/translator.js";
+import window from "../../Bots utils/window.js"
+import inventory from "../../Bots utils/inventory.js";
+import repairAxe from "./repairAxe.js";
+import buyer from "../../Bots utils/Funtime utils/buyer.js";
+import event from "../../Bots utils/event.js";
+import connect from "../../Bots utils/connect.js";
+
+
+import autoInvisible from "../../Bots utils/Funtime utils/autoInvisible.js";
+import autoEat from "../../Bots utils/Funtime utils/autoEat.js";
+import smartOutput from "../../Bots utils/Funtime utils/smartOutput.js";
+
+const scriptCB = {
+
+    start: async (bot) => {
+        event.spawnOnce(bot, async () => {
+            clickerCB.clickerEvent(bot)
+            scriptCB.startEvent(bot)
+
+            while (true) {
+
+                for (let i = 0; i < 4; i++) {
+                    await scriptCB.beforeFirstLine(bot).catch(err => {})
+                    await autoInvisible.transferAndDrinkInvis(bot).catch(err => {})
+                    await autoEat.checkFoodAndEat(bot, 10).catch(err => {})
+
+                    await func.delay(500)
+                    for (let i = 0; i < 5; i++) {
+
+                        await scriptCB.newVersion.defaultLine(bot).catch(err => {})
+                        await scriptCB.newVersion.goToNextLine(bot).catch(err => {})
+                        await buyer.sell(bot, 13, "cactus", 10, "cocoa_beans").catch(err => {})
+                    }
+                }
+
+            }
+
+        })
+    },
+
+    startEvent: async (bot) => {
+        translator.death(bot, "СУКА МЕНЯ ЗАГАСИЛИ УЁБКИ")
+        translator.end(bot, "БЛЯЯЯЯ Я ОФНУЛСЯ!")
+        translator.kick(bot, "ЕБУЧИЙ СЛУЧАЙ! МЕНЯ СЕРВЕР КИКНУЛ!")
+        translator.spawn(bot, "Йа зяспявнилься! ураааа")
+        smartOutput.clanMoneyAndDeath(bot)
+    },
+
+    /**
+     * Действия, которые будут выполняться перед началом нового круга бота. Действия:
+     * 1. Телепортация на клан хом
+     * 2. Направление взгляда в нужную точку
+     * 3. Экипировка топора
+     * 4. Починка топора
+     * @param {import('mineflayer').Bot} bot
+     * @returns {Promise<void>}
+     */
+    beforeFirstLine: async (bot) => {
+        if (bot._client?.socket?.destroyed) {
+            bot.quit()
+
+            await func.delay(5000)
+            await connect(bot.vars.settings.username, bot.smart.vars.settings.server, bot.smart.vars.settings.anarchy, bot.smart.vars.settings.version, bot.smart.vars.settings.port, bot.smart.vars.settings.proxy)
+            await func.delay(10000)
+            scriptCB.startEvent(bot)
+
+        }
+
+        bot.chat(bot.smart.vars.settings.anarchy)
+        await func.delay(3000)
+
+        //Телепортация в начало фермы
+        bot.chat("/home 1")
+        await func.delay(bot.smart.vars.settings.cdms + 500)
+
+        //Направление взгляда
+        //await bot.look(Math.PI*3/2+0.005, Math.PI/2, true)
+        //await func.delay(500)
+
+        //Экипировка топора
+        await window.swapItem(bot, inventory.getSlotItem(bot.inventory.slots, "netherite_axe")?.slot, 36)
+
+        //Починка топора (если на нем менее 50% прочности)
+        await repairAxe.repairToPercent(bot, 50)
+        bot.chat("/clan invest 10000000")
+    },
+
+
+
+    /**
+     * Действия бота для прохождения 1 линии какао бобов
+     * @param {import('mineflayer').Bot} bot
+     * @returns {Promise<void>}
+     */
+    line: async (bot) => {
+
+        //Бот идет вперед и ломает какао бобы
+        bot.setQuickBarSlot(0)
+        await func.delay(500)
+        clickerCB.dig.start(bot)
+        await func.delay(500) //Ожидание, чтобы начать кликер
+        move.just.forward.start(bot)
+        await func.delay(9700)
+        move.just.forward.stop(bot)
+        clickerCB.dig.stop(bot)
+
+        await func.delay(500) //Ожидание, чтобы завершить кликер
+
+        //Бот идет обратно и ставит какао бобы
+        clickerCB.place.start(bot)
+        move.just.back.start(bot)
+        await scriptCB.changeHotbarSlot(bot)
+        move.just.back.stop(bot)
+        clickerCB.place.stop(bot)
+
+
+        //Переход к следующему ряду
+        await move.just.left.start(bot)
+        await func.delay(750)
+        await move.just.left.stop(bot)
+
+        await func.delay(100)
+
+        await move.just.forward.start(bot)
+        await func.delay(250)
+        await move.just.forward.stop(bot)
+
+        await func.delay(100)
+
+        await move.just.right.start(bot)
+        await func.delay(300)
+        await move.just.right.stop(bot)
+
+        await func.delay(100)
+
+
+        //Продажа баеру
+        await buyer.sell(bot, 13, "cactus", 10, "cocoa_beans")
+    },
+
+
+
+
+    /**
+     * Проход линии при отходе влево
+     * @param bot
+     * @returns {Promise<void>}
+     */
+    lineNew1: async (bot) => {
+
+        //Бот идет вперед и ломает какао бобы
+        bot.setQuickBarSlot(0)
+        await func.delay(500)
+        clickerCB.dig.start(bot)
+        await func.delay(500) //Ожидание, чтобы начать кликер
+        move.just.forward.start(bot)
+        await func.delay(9700)
+        move.just.forward.stop(bot)
+        clickerCB.dig.stop(bot)
+
+        move.just.left.start(bot)
+        await func.delay(500)
+        move.just.left.stop(bot)
+
+        await func.delay(500)
+        clickerCB.dig.start(bot)
+        await func.delay(500) //Ожидание, чтобы начать кликер
+        move.just.back.start(bot)
+        await func.delay(9700)
+        move.just.back.stop(bot)
+        clickerCB.dig.stop(bot)
+
+
+        await func.delay(500) //Ожидание, чтобы завершить кликер
+        move.just.right.start(bot)
+        await func.delay(500)
+        move.just.right.stop(bot)
+
+
+        //Бот идет обратно и ставит какао бобы
+        clickerCB.place.start(bot)
+        move.just.forward.start(bot)
+        await scriptCB.changeHotbarSlot(bot)
+        move.just.forward.stop(bot)
+        clickerCB.place.stop(bot)
+
+
+        //Переход к следующему ряду
+        await move.just.left.start(bot)
+        await func.delay(750)
+        await move.just.left.stop(bot)
+
+        await func.delay(100)
+
+        await move.just.forward.start(bot)
+        await func.delay(250)
+        await move.just.forward.stop(bot)
+
+        await func.delay(100)
+
+        await move.just.right.start(bot)
+        await func.delay(300)
+        await move.just.right.stop(bot)
+
+        await func.delay(100)
+
+
+        //Продажа баеру
+        await buyer.sell(bot, 13, "cactus", 10, "cocoa_beans")
+    },
+
+    /**
+     * Функция для переключения слотов при расстановке
+     * @param {import('mineflayer').Bot} bot
+     * @returns {Promise<void>}
+     */
+    changeHotbarSlot: async (bot) => {
+        //Ну тут думаю и так всё понятно...
+        bot.setQuickBarSlot(1)
+        await func.delay(2000)
+
+        bot.setQuickBarSlot(2)
+        await func.delay(2000)
+
+        bot.setQuickBarSlot(3)
+        await func.delay(2000)
+
+        bot.setQuickBarSlot(4)
+        await func.delay(2000)
+
+        bot.setQuickBarSlot(5)
+        await func.delay(1700)
+
+    },
+
+    newVersion: {
+
+        changeHotbarSlotFirst: async (bot) => {
+            //Ну тут думаю и так всё понятно...
+            bot.setQuickBarSlot(1)
+            await func.delay(4000)
+
+            bot.setQuickBarSlot(2)
+            await func.delay(4000)
+
+            bot.setQuickBarSlot(3)
+            await func.delay(2000)
+
+
+
+        },
+
+        changeHotbarSlotSecond: async (bot) => {
+            //Ну тут думаю и так всё понятно...
+            bot.setQuickBarSlot(3)
+            await func.delay(2000)
+
+            bot.setQuickBarSlot(4)
+            await func.delay(4000)
+
+            bot.setQuickBarSlot(5)
+            await func.delay(4000)
+
+
+
+        },
+
+
+        digForward: async (bot) => {
+            bot.setQuickBarSlot(0)
+            clickerCB.dig.start(bot)
+            move.just.forward.start(bot)
+            await func.delay(9700)
+            move.just.forward.stop(bot)
+            clickerCB.dig.stop(bot)
+        },
+
+        digBack: async (bot) => {
+            clickerCB.dig.start(bot)
+            move.just.back.start(bot)
+            await func.delay(9700)
+            move.just.back.stop(bot)
+            clickerCB.dig.stop(bot)
+        },
+
+        placeForward: async (bot) => {
+            clickerCB.place.start(bot)
+            move.just.forward.start(bot)
+            await scriptCB.newVersion.changeHotbarSlotFirst(bot)
+            move.just.forward.stop(bot)
+            clickerCB.place.stop(bot)
+        },
+
+        placeBack: async (bot) => {
+            clickerCB.place.start(bot)
+            move.just.back.start(bot)
+            await scriptCB.newVersion.changeHotbarSlotFirst(bot)
+            move.just.back.stop(bot)
+            clickerCB.place.stop(bot)
+        },
+
+
+        miniLine: async (bot) => {
+            await scriptCB.newVersion.digForward(bot)
+            await scriptCB.newVersion.placeBack(bot)
+        },
+
+        defaultLine: async (bot) => {
+            await scriptCB.newVersion.miniLine(bot)
+
+            move.just.left.start(bot)
+            await func.delay(250)
+            move.just.left.stop(bot)
+
+            await scriptCB.newVersion.miniLine(bot)
+
+        },
+
+        goToNextLine: async (bot) => {
+            move.just.left.start(bot)
+            await func.delay(600)
+            move.just.left.stop(bot)
+
+            move.just.forward.start(bot)
+            await func.delay(300)
+            move.just.forward.stop(bot)
+
+            move.just.right.start(bot)
+            await func.delay(500)
+            move.just.right.stop(bot)
+        }
+    }
+
+
+
+}
+
+export default scriptCB
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

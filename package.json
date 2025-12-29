@@ -1,0 +1,37 @@
+{
+  "name": "threefuntimebots",
+  "type": "module",
+  "version": "1.0.111",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node Bots/test.js"
+  },
+  "private": false,
+  "dependencies": {
+    "@prisma/adapter-pg": "^7.2.0",
+    "@prisma/client": "^7.2.0",
+    "chalk": "^5.6.0",
+    "databaseapismartest": "^1.0.7",
+    "dotenv": "^17.2.3",
+    "minecraft-protocol": "^1.62.0",
+    "mineflayer": "^4.32.0",
+    "node-machine-id": "^1.1.12",
+    "pg": "^8.16.3",
+    "protodef": "^1.19.0",
+    "smartdbapi": "^1.0.0",
+    "socks": "^2.8.7",
+    "vec3": "^0.1.10"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.3",
+    "@types/pg": "^8.16.0",
+    "prisma": "^7.2.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
