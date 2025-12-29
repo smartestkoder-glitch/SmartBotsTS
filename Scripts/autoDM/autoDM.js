@@ -46,10 +46,10 @@ const autoDM = {
                 if (dm.data.length !== 45) {
 
                     func.output(dm.data.length, undefined, "red", "bold")
-                    continue
+
                 }
                 //console.log(dm)
-                if (JSON.stringify(dm) !== JSON.stringify(parse)) {
+                if ((JSON.stringify(dm) !== JSON.stringify(parse)) && dm.data.length === 45) {
                     autoDMDatabaseFunc.addPage(dm.data, dm.marketMy)
                 }
                 parse = dm
