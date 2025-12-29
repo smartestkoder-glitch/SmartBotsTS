@@ -57,7 +57,7 @@ const autoDM = {
                 window.click(bot, 49)
                 //func.output("Кликнул")
 
-                await func.delay(200)
+                await func.delay(500)
                 await window.waitToSlot(bot, 49, "nether_star", 10000)
 
             }
