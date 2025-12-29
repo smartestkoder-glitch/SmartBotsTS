@@ -41,6 +41,8 @@ const bot = await connect(
     "45.43.70.207:6494:xyhqvwvm:growthup",//104.252.62.195:5566:uyefiwor:growthup
     "autoDMChecker"
 )
+
+func.output(process.memoryUsage())
 /*translator.chat(bot, true)
 bot.once("spawn", async () => {
     await restartAnarchy.restartIfHub(bot)

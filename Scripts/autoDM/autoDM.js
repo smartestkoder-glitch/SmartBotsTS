@@ -50,14 +50,14 @@ const autoDM = {
                 }
                 //console.log(dm)
                 if ((JSON.stringify(dm) !== JSON.stringify(parse)) && dm.data.length === 45) {
-                    autoDMDatabaseFunc.addPage(dm.data, dm.marketMy)
+                    await autoDMDatabaseFunc.addPage(dm.data, dm.marketMy)
                 }
                 parse = dm
 
                 window.click(bot, 49)
                 //func.output("Кликнул")
 
-                await func.delay(500)
+                await func.delay(200)
                 await window.waitToSlot(bot, 49, "nether_star", 10000)
 
             }
