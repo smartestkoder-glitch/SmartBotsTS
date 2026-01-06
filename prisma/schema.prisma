@@ -1,19 +1,156 @@
 generator client {
-  provider        = "prisma-client-js"
-  output          = "../generated/prisma"
-  previewFeatures = ["multiSchema"]
+  provider = "prisma-client"
+  output   = "../generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
-  schemas  = ["parsedm", "autosell", "bots"]
+  schemas  = ["autosell", "bots", "parsedm", "telegram"]
+}
+
+model Buys {
+  id         Int        @id @default(autoincrement())
+  message    String
+  price      Int?
+  item       String?
+  count      Int?
+  dealer     String?
+  date       DateTime   @default(now())
+  botId      Int
+  BotsConfig BotsConfig @relation(fields: [botId], references: [id])
+
+  @@schema("autosell")
+}
+
+model PriceConfig {
+  id        Int    @id @default(autoincrement())
+  itemName  String
+  priceSell Int
+  priceBuy  Int
+
+  @@schema("autosell")
+}
+
+model Sells {
+  id         Int        @id @default(autoincrement())
+  message    String
+  date       DateTime   @default(now())
+  botId      Int
+  count      Int?
+  item       String?
+  price      Int?
+  BotsConfig BotsConfig @relation(fields: [botId], references: [id])
+
+  @@schema("autosell")
+}
+
+model BotsConfig {
+  id       Int     @id @default(autoincrement())
+  nick     String
+  password String
+  server   String
+  settings Json?
+  donate   String?
+  money    Int?
+
+  busyNick Boolean @default(false)
+
+  online Boolean @default(false)
+  banned Boolean @default(false)
+
+  Buys  Buys[]
+  Sells Sells[]
+
+  scriptId Int
+  Scripts  Scripts @relation(fields: [scriptId], references: [id])
+
+  proxyId Int
+  Proxy   Proxy @relation(fields: [proxyId], references: [id])
+
+  DMBuys DMBuys[]
+  kicks        Kicks[]
+  bans         Bans[]
+  chatMessages ChatMessages[]
+
+  @@schema("bots")
+}
+
+model Kicks {
+  id   Int    @id @default(autoincrement())
+  text String
+  json Json?
+
+  botId Int
+  bot   BotsConfig @relation(fields: [botId], references: [id])
+
+  time DateTime @default(now())
+
+  @@schema("bots")
+}
+
+model Bans {
+  id   Int    @id @default(autoincrement())
+  text String
+  json Json?
+
+  botId Int
+  bot   BotsConfig @relation(fields: [botId], references: [id])
+
+  time DateTime @default(now())
+
+  @@schema("bots")
+}
+
+model ChatMessages {
+  id   Int    @id @default(autoincrement())
+  text String
+  json Json?
+
+  botId Int
+  bot   BotsConfig @relation(fields: [botId], references: [id])
+
+  time DateTime @default(now())
+
+  @@schema("bots")
+}
+
+model Proxy {
+  id Int @id @default(autoincrement())
+
+  proxy String
+  bots  BotsConfig[]
+
+  @@schema("bots")
+}
+
+model Scripts {
+  id         Int          @id @default(autoincrement())
+  name       String
+  creatAt    DateTime     @default(now())
+  BotsConfig BotsConfig[]
+
+  @@schema("bots")
+}
+
+model DMBuys {
+  id         Int        @id @default(autoincrement())
+  dealer     String
+  price      Int
+  course     Int
+  name       String
+  success    Boolean?
+  time       DateTime   @default(now())
+  botId      Int
+  BotsConfig BotsConfig @relation(fields: [botId], references: [id])
+
+  @@schema("parsedm")
 }
 
 model Pages {
   id       Int      @id @default(autoincrement())
   time     DateTime @default(now())
   marketMy Int
-  slots    Slots[]
+  Slots    Slots[]
 
   @@schema("parsedm")
 }
@@ -26,26 +163,30 @@ model Slots {
   marketPrice Int
   purpose     String?
   dealer      String
-  page        Pages   @relation(fields: [pageId], references: [id])
   pageId      Int
+  Pages       Pages   @relation(fields: [pageId], references: [id])
 
   @@schema("parsedm")
 }
 
-model PriceConfig {
-  id        Int    @id @default(autoincrement())
-  itemName  String
-  priceSell Int
-  priceBuy  Int
+model TelegramRoles {
+  id    Int             @id @default(autoincrement())
+  name  String          @unique
+  Users TelegramUsers[]
 
-  @@schema("autosell")
+  @@map("Roles")
+  @@schema("telegram")
 }
 
-model BotsConfig {
-  id       Int    @id @default(autoincrement())
-  nick     String
-  server   String
-  settings Json?
+model TelegramUsers {
+  id        Int           @id @default(autoincrement())
+  userId    BigInt        @unique
+  username  String?
+  name      String?
+  roleId    Int
+  createdAt DateTime      @default(now())
+  Role      TelegramRoles @relation(fields: [roleId], references: [id])
 
-  @@schema("bots")
+  @@map("Users")
+  @@schema("telegram")
 }

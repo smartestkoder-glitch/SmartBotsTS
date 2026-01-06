@@ -6,9 +6,10 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node Bots/test.js",
-    "startpm2": "pm2 start Bots/test.js --name AutoDMChecker\n",
-    "prisma": "npx prisma migrate dev --name init && npx prisma generate"
+    "start": "node src/Bots/test.ts",
+    "startpm2": "pm2 start src/Bots/test.ts --name AutoDMChecker\n",
+    "prisma": "npx prisma migrate dev && npx prisma generate",
+    "sellStart": "pm2 start src/Bots/testmoney.ts"
   },
   "private": false,
   "dependencies": {
@@ -17,13 +18,16 @@
     "chalk": "^5.6.0",
     "databaseapismartest": "^1.0.7",
     "dotenv": "^17.2.3",
+    "flayercaptcha": "^1.0.6",
     "minecraft-protocol": "^1.62.0",
     "mineflayer": "^4.32.0",
     "node-machine-id": "^1.1.12",
     "pg": "^8.16.3",
     "protodef": "^1.19.0",
+    "sharp": "^0.34.5",
     "smartdbapi": "^1.0.0",
     "socks": "^2.8.7",
+    "telegraf": "^4.16.3",
     "vec3": "^0.1.10"
   },
   "devDependencies": {
