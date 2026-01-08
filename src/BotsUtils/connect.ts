@@ -9,7 +9,6 @@ import {SocksClientEstablishedEvent} from "socks/typings/common/constants";
 import type { Client } from "minecraft-protocol";
 
 import {BotConfig} from "../types/botConfig";
-import translator from "./translator";
 
 
 async function connect(config :BotConfig) {
