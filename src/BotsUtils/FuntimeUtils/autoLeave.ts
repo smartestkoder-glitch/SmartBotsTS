@@ -1,5 +1,5 @@
 import func from "../function.js"
-import restart from "./restart.js";
+import restart from "../restart.js";
 import {Bot} from "mineflayer";
 import { Entity } from "prismarine-entity";
 

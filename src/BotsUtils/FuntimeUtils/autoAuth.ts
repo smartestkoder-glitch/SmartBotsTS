@@ -2,6 +2,7 @@ import FlayerCaptcha from "flayercaptcha";
 import sharp, {Sharp} from "sharp";
 import func from "../function.js";
 import {Bot} from "mineflayer";
+import restart from "../restart.js";
 
 const autoAuth = {
 
@@ -18,7 +19,7 @@ const autoAuth = {
         const image = bot.smart.vars.captcha.facing[facing]
 
         if (!image) return
-        const resizedBuffer = await image.toBuffer().then((buf: sharp.SharpOptions | undefined) => sharp(buf).resize(250, 150, {
+        const resizedBuffer = await image.toBuffer().then((buf: any) => sharp(buf).resize(250, 150, {
             fit: 'fill'
         }).toBuffer().then(buf => buf.toString("base64")));
         return resizedBuffer
@@ -66,7 +67,7 @@ const autoAuth = {
     },
 
     solver: async (bot :Bot) => {
-
+        autoAuth.saveCaptcha(bot)
         const funcSolver = async (mes :any) => {
 
             const mesClean = mes?.extra?.map((el: { text: any; }) => el?.text)?.join("")
@@ -91,6 +92,13 @@ const autoAuth = {
                 }
 
                 const buffer = await autoAuth.toBufferCaptcha(bot, "forward")
+                if (!buffer) {
+                    func.output("Капча неудачно преобразованна! Ввожу случайное число...", "", "red", "bold")
+                    await func.delay(500)
+                    bot.chat(Math.floor(Math.random() * 100000).toString())
+                    bot.smart.vars.captcha.solving = false
+                    return
+                }
 
                 const answer = await autoAuth.sendAPI(buffer)
 
@@ -120,11 +128,13 @@ const autoAuth = {
 
             if (mesClean?.startsWith("[✾] Зарегистрируйтесь ↝ /reg <Пароль>")) {
                 await func.delay(500)
-                bot.chat("/reg " + bot.smart.vars.settings.password)
+                if (!bot.smart.vars.config.settings?.password) return restart.fatal("Отсутствует пароль в переменных бота!")
+                bot.chat("/reg " + bot.smart.vars.config.settings.password)
                 //bot.removeListener("message", autoLoginFunc)
             }
             if (mesClean?.startsWith("[✾] Войдите в игру ↝ /login <Пароль>")) {
-                bot.chat("/login " + bot.smart.vars.settings.password)
+                if (!bot.smart.vars.config.settings?.password) return restart.fatal("Отсутствует пароль в переменных бота!")
+                bot.chat("/login " + bot.smart.vars.config.settings.password)
                 //bot.removeListener("message", autoLoginFunc)
             }
 

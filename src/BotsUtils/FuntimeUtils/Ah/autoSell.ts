@@ -2,11 +2,11 @@ import rubbish from "../../rubbish.js";
 import window from "../../window.js";
 import inventory from "../../inventory.js";
 import func from "../../function.js";
-import restart from "../restart.js";
+import restart from "../../restart.js";
 import autoBuy from "./autoBuy.js";
 import antiAFK from "../antiAFK.js";
 import detectDonate from "../detectDonate.js"
-import {prisma} from "../../../../lib/prisma";
+import {prisma} from "../../../../lib/prisma.js";
 import event from "../../event.js";
 import {Bot} from "mineflayer";
 import ahUtils from "./ahUtils";
@@ -57,7 +57,7 @@ const autoSell = {
 
 
         const sellSlot = bot.inventory.slots[bot.quickBarSlot + 36]
-        if (sellSlot?.name !== item || sellSlot?.count !== 1) return restart.default("Неверный слот продажи!")
+        if (sellSlot?.name !== item || sellSlot?.count !== 1) return restart.default(bot, "Неверный слот продажи!")
 
         bot.chat("/ah sell " + price)
         await func.delay(1000)
@@ -114,22 +114,22 @@ const autoSell = {
     },
 
     updateBoughtCountItem: (bot :Bot, count :number) => {
-        if (bot.smart?.vars?.script?.autoSell?.boughtCountItem === undefined) return restart.fatal()
+        if (bot.smart?.vars?.script?.autoSell?.boughtCountItem === undefined) return restart.default(bot,"Отсутствует кол-во купленных предметов(countboughtitem) в переменных бота!")
         bot.smart.vars.script.autoSell.boughtCountItem = count
     },
 
     updateNeedToBuy: (bot :Bot, need :boolean = true) => {
-        if (bot.smart?.vars?.script?.autoSell?.needToBuy === undefined) return restart.fatal()
+        if (bot.smart?.vars?.script?.autoSell?.needToBuy === undefined) return restart.default(bot, "Отсутствует needtobuy переменных бота!")
         bot.smart.vars.script.autoSell.needToBuy = need
     },
 
     updateDateResell: (bot :Bot) => {
-        if (bot.smart?.vars?.script?.autoSell?.lastResell === undefined) return restart.fatal()
+        if (bot.smart?.vars?.script?.autoSell?.lastResell === undefined) return restart.default(bot, "Отсутствует lastresell в переменных бота!")
         bot.smart.vars.script.autoSell.lastResell = new Date().getTime()
     },
 
     getLastResellTime: (bot :Bot) => {
-        if (bot.smart?.vars?.script?.autoSell?.lastResell === undefined) return restart.fatal()
+        if (bot.smart?.vars?.script?.autoSell?.lastResell === undefined) return restart.default(bot, "Отсутствует lastresell в переменных бота!")
         return bot.smart.vars.script.autoSell.lastResell
     },
 
@@ -165,17 +165,17 @@ const autoSell = {
         event.message(bot, (mes) => {
             const mesClean = mes?.extra?.map((el: { text: any; }) => el?.text)?.join("")
 
-            if (mesClean?.startsWith("[☃] У Вас купили")) autoSell.addSellAtBase(mesClean)
+            //if (mesClean?.startsWith("[☃] У Вас купили")) autoSell.addSellAtBase(mesClean)
         })
     },
 
-    addSellAtBase: async (message :string) => {
+    /*addSellAtBase: async (message :string) => {
         await prisma.sells.create({
             data: {
                 message
             }
         })
-    }
+    }*/
 
 
 }

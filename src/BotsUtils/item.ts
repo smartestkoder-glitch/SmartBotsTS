@@ -1,12 +1,11 @@
 import effect from "./effects.js"
 import func from "./function.js"
 
-export default {
-    getLore: (item :any) => {
+import {colorText} from "../types/colotTextItem"
+import {Item} from "prismarine-item";
 
-        return JSON.parse(item?.nbt?.value?.display?.value?.Lore?.value?.value[0])?.extra?.map((el: { text: any }) => el?.text).join("")
+const itemFunc = {
 
-    },
 
 
 
@@ -64,5 +63,42 @@ export default {
                 func.output(`Произошла попытка узнавания прочности предмета, у которого нет прочности! Предмет: ${item?.name}`, "ПРЕДУПРЕЖДЕНИЕ")
             }
         }
+    },
+
+    createTextFromColorText: (colorText: ((colorText[]) | undefined)[])=> {
+        let ans : string[] = []
+        colorText.forEach(el => {
+            if (!el) ans.push("")
+            else el.forEach(el2 => {
+                const text = el2.text?.value
+                if (!text) ans.push("")
+                else ans.push(text)
+            })
+            ans.push("\n")
+        })
+        const ans1 = ans.join("")
+        return ans1
+    },
+
+    getItemLoreJson: (item :Item) => {
+        return item.components?.find(el => el.type === "lore")?.data
+    },
+
+    getColorTextJson: (item : Item) => {
+        const lore = itemFunc.getItemLoreJson(item)
+        let ans :((colorText[]) | undefined)[] = []
+        lore?.forEach(el => {
+
+            ans.push(el?.value?.extra?.value?.value)
+        })
+        return ans
+    },
+
+    getLore: (item :Item) => {
+        const colorText = itemFunc.getColorTextJson(item)
+        if (!colorText) return
+        return itemFunc.createTextFromColorText(colorText)
     }
 }
+
+export default itemFunc

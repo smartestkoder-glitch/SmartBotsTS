@@ -3,7 +3,7 @@ import effect from "../effects.js";
 import item from '../item.js'
 import func from "../function.js"
 import use from "../use.js"
-import restart from "./restart.js";
+import restart from "../restart.js";
 import {Bot} from "mineflayer";
 
 const autoInvisible = {

@@ -14,8 +14,8 @@ const restartAnarchy = {
         if (bot.entity?.position?.floored().toString() === new Vec3( 0, 70, 0 ).toString()) {
             await func.delay(3000)
             //await restart.default(bot, "Перезаход на анку")
-            if (!bot.smart.vars.settings.anarchy) return
-            bot.chat(bot.smart.vars.settings.anarchy)
+            if (!bot.smart.vars.config.settings?.anarchy) return
+            bot.chat(bot.smart.vars.config.settings.anarchy)
             await func.delay(3000)
         }
     }

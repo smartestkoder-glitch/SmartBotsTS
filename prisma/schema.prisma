@@ -8,7 +8,7 @@ datasource db {
   schemas  = ["autosell", "bots", "parsedm", "telegram"]
 }
 
-model Buys {
+model AutoSellBuys {
   id         Int        @id @default(autoincrement())
   message    String
   price      Int?
@@ -17,21 +17,23 @@ model Buys {
   dealer     String?
   date       DateTime   @default(now())
   botId      Int
-  BotsConfig BotsConfig @relation(fields: [botId], references: [id])
+  Bot BotsConfig @relation(fields: [botId], references: [id])
 
+  @@map("Buys")
   @@schema("autosell")
 }
 
 model PriceConfig {
   id        Int    @id @default(autoincrement())
   itemName  String
+  potion String?
   priceSell Int
   priceBuy  Int
 
   @@schema("autosell")
 }
 
-model Sells {
+model AutoSellSells {
   id         Int        @id @default(autoincrement())
   message    String
   date       DateTime   @default(now())
@@ -39,17 +41,18 @@ model Sells {
   count      Int?
   item       String?
   price      Int?
-  BotsConfig BotsConfig @relation(fields: [botId], references: [id])
+  Bot BotsConfig @relation(fields: [botId], references: [id])
 
+  @@map("Sells")
   @@schema("autosell")
 }
 
 model BotsConfig {
   id       Int     @id @default(autoincrement())
   nick     String
-  password String
   server   String
-  settings Json?
+  version String
+
   donate   String?
   money    Int?
 
@@ -58,30 +61,59 @@ model BotsConfig {
   online Boolean @default(false)
   banned Boolean @default(false)
 
-  Buys  Buys[]
-  Sells Sells[]
+  Buys  AutoSellBuys[]
+  Sells AutoSellSells[]
 
-  scriptId Int
-  Scripts  Scripts @relation(fields: [scriptId], references: [id])
+
 
   proxyId Int
   Proxy   Proxy @relation(fields: [proxyId], references: [id])
 
+
+  settings BotSettings?
+
   DMBuys DMBuys[]
   kicks        Kicks[]
   bans         Bans[]
+  deaths Deaths[]
   chatMessages ChatMessages[]
+
+  @@schema("bots")
+}
+
+model BotSettings {
+  id       Int     @id @default(autoincrement())
+  botId Int @unique
+  Bot BotsConfig @relation(fields: [botId], references: [id])
+
+  password String?
+  anarchy String?
+
+  scriptId Int?
+  Scripts  Scripts? @relation(fields: [scriptId], references: [id])
 
   @@schema("bots")
 }
 
 model Kicks {
   id   Int    @id @default(autoincrement())
-  text String
-  json Json?
+  text String?
+  json String
 
   botId Int
-  bot   BotsConfig @relation(fields: [botId], references: [id])
+  Bot   BotsConfig @relation(fields: [botId], references: [id])
+
+  time DateTime @default(now())
+
+  @@schema("bots")
+}
+
+model Deaths {
+  id   Int    @id @default(autoincrement())
+
+
+  botId Int
+  Bot   BotsConfig @relation(fields: [botId], references: [id])
 
   time DateTime @default(now())
 
@@ -90,11 +122,11 @@ model Kicks {
 
 model Bans {
   id   Int    @id @default(autoincrement())
-  text String
-  json Json?
+  text String?
+  json String
 
   botId Int
-  bot   BotsConfig @relation(fields: [botId], references: [id])
+  Bot   BotsConfig @relation(fields: [botId], references: [id])
 
   time DateTime @default(now())
 
@@ -103,11 +135,11 @@ model Bans {
 
 model ChatMessages {
   id   Int    @id @default(autoincrement())
-  text String
-  json Json?
+  text String?
+  json String
 
   botId Int
-  bot   BotsConfig @relation(fields: [botId], references: [id])
+  Bot   BotsConfig @relation(fields: [botId], references: [id])
 
   time DateTime @default(now())
 
@@ -117,7 +149,7 @@ model ChatMessages {
 model Proxy {
   id Int @id @default(autoincrement())
 
-  proxy String
+  proxy String @unique
   bots  BotsConfig[]
 
   @@schema("bots")
@@ -125,37 +157,38 @@ model Proxy {
 
 model Scripts {
   id         Int          @id @default(autoincrement())
-  name       String
+  name       String @unique
   creatAt    DateTime     @default(now())
-  BotsConfig BotsConfig[]
+  Bots BotSettings[]
 
   @@schema("bots")
 }
 
 model DMBuys {
   id         Int        @id @default(autoincrement())
-  dealer     String
-  price      Int
-  course     Int
-  name       String
+  dealer     String?
+  price      Int?
+  course     Int?
+  name       String?
   success    Boolean?
   time       DateTime   @default(now())
   botId      Int
-  BotsConfig BotsConfig @relation(fields: [botId], references: [id])
+  Bot BotsConfig @relation(fields: [botId], references: [id])
 
   @@schema("parsedm")
 }
 
-model Pages {
+model AutoDMPages {
   id       Int      @id @default(autoincrement())
   time     DateTime @default(now())
   marketMy Int
-  Slots    Slots[]
+  Slots    AutoDMSlots[]
 
+  @@map("Pages")
   @@schema("parsedm")
 }
 
-model Slots {
+model AutoDMSlots {
   id          Int     @id @default(autoincrement())
   name        String
   price       Int
@@ -163,9 +196,11 @@ model Slots {
   marketPrice Int
   purpose     String?
   dealer      String
+  slot Int?
   pageId      Int
-  Pages       Pages   @relation(fields: [pageId], references: [id])
+  Pages       AutoDMPages   @relation(fields: [pageId], references: [id])
 
+  @@map("Slots")
   @@schema("parsedm")
 }
 

@@ -1,7 +1,7 @@
 import func from '../../function.js';
 import window from '../../window.js';
 
-import restart from "../restart.js";
+import restart from "../../restart.js";
 import moneyFT from "../moneyFT.js";
 import inventory from "../../inventory.js";
 import antiAFK from "../antiAFK.js";
@@ -10,10 +10,7 @@ import {Item} from "prismarine-item";
 import {Bot} from "mineflayer";
 
 const autoBuy = {
-    /**
-     *
-     * @param item
-     */
+
     getLoreJSON: (item :any) => {
         const lore = item?.components?.find((el: { type: string; }) => el?.type === "custom_data")?.data?.value?.display?.value?.Lore?.value?.value?.join(",")
         if (!lore) return []
@@ -49,10 +46,6 @@ const autoBuy = {
         }
     },
 
-    /**
-     *
-     * @param {import('mineflayer').Bot} bot
-     */
     decodeAll: (bot :Bot) => {
         let result = []
 
@@ -68,12 +61,6 @@ const autoBuy = {
         return result
     },
 
-    /**
-     *
-     * @param {import('mineflayer').Bot} bot
-     * @param par
-     * @param randLook
-     */
     openAh: async (bot :Bot, par :string, randLook :boolean = true) => {
         await window.close(bot)
         if (randLook) await antiAFK.randomLook(bot)
@@ -87,17 +74,10 @@ const autoBuy = {
         restart.default(bot, "Не открылся аукцион")
     },
 
-
-    /**
-     *
-     * @param {import('mineflayer').Bot} bot
-     * @param normPrice
-     * @param name
-     * @param potion
-     */
     findNormalOffer: (bot :Bot, normPrice :number, name :string, potion :string) => {
         const decodeAh = autoBuy.decodeAll(bot)
         const money = moneyFT.getMoney(bot)
+        if (!money) return
 
         const normOffer = decodeAh
             .find(item =>
@@ -111,31 +91,18 @@ const autoBuy = {
 
     },
 
-    /**
-     *
-     * @param {import('mineflayer').Bot} bot
-     */
     getListNow: (bot :Bot) => {
         const nameWindow = window.getNameWindow(bot)
 
         return nameWindow?.match(/Поиск: Инв \[\d+\//)?.[0]?.replace(/\D/g, "")
     },
 
-    /**
-     *
-     * @param {import('mineflayer').Bot} bot
-     */
     getListAll: (bot :Bot) => {
         const nameWindow = window.getNameWindow(bot)
 
         return nameWindow?.match(/\/\d+/)?.[0]?.replace(/\D/g, "")
     },
 
-    /**
-     *
-     * @param {import('mineflayer').Bot} bot
-     * @param slot
-     */
     buyItem: async (bot :Bot, slot :number) => {
         window.click(bot, slot)
         if (!await window.waitToSlot(bot, 1, "lime_stained_glass_pane", 5000)) return
@@ -144,10 +111,6 @@ const autoBuy = {
         await window.waitToChangeCountSlot(bot, 5000)
     },
 
-    /**
-     *
-     * @param {import('mineflayer').Bot} bot
-     */
     goNextPage: async (bot :Bot) => {
 
         if (autoBuy.checkLastPage(bot)) return
@@ -156,37 +119,16 @@ const autoBuy = {
         await window.waitToChangeNameWindow(bot, 5000)
     },
 
-    /**
-     *
-     * @param {import('mineflayer').Bot} bot
-     */
     checkLastPage: (bot :Bot) => {
         if (autoBuy.getListNow(bot) - autoBuy.getListAll(bot) === 0) return true
         return false
     },
 
-    /**
-     * Проверяет, открыто окно аукциона или нет
-     * @param {import('mineflayer').Bot} bot
-     */
     checkAh: (bot :Bot) => {
         if (bot.currentWindow?.slots[49]?.name === "nether_star") return true
         return false
     },
 
-    /**
-     *
-     * @param {import('mineflayer').Bot} bot
-     * @param search
-     * @param itemName
-     * @param price
-     * @param potion
-     * @param minBuyCount
-     * @param minNeedCount
-     * @param timeToBuy
-     * @param timeToNextPage
-     * @param minMoneyCount
-     */
     multiPageAutoBuy: async (bot :Bot, search :string, itemName :string, price :number, potion :string, minBuyCount :number = 1, minNeedCount :number = 1, timeToBuy :number = 1000, timeToNextPage :number = 1000, minMoneyCount :number = 10) => {
         func.output(`Бот начинает покупать`, "dev", "green", "bold")
 
@@ -202,14 +144,9 @@ const autoBuy = {
             return
         }
 
-
-
-
         while (!autoBuy.checkLastPage(bot) // Проверяет, что не на последней странице
         && inventory.getCountItem(bot.currentWindow?.slots, itemName, 54, 90) < minNeedCount // Проверяет, выполнил ли цель по покупке предметов
-        && moneyFT.getMoney(bot) >= (price * minMoneyCount)) { // Проверяет, что достаточно монет для покупки X предметов
-
-
+        && (moneyFT.getMoney(bot) || -1) >= (price * minMoneyCount)) { // Проверяет, что достаточно монет для покупки X предметов
 
             const normOffer = autoBuy.findNormalOffer(bot, price, itemName, potion)
 
@@ -220,20 +157,14 @@ const autoBuy = {
 
             }
             await func.delay(timeToNextPage)
-
             await autoBuy.goNextPage(bot)
             func.output(`Бот листает страницу аукциона... Текущая страница - ${autoBuy.getListNow(bot)}`, "dev", "green", "bold")
-
-
 
         }
         autoSell.updateNeedToBuy(bot, false)
         func.output(`Бот закончил покупать! Состояния: ${!autoBuy.checkLastPage(bot)} -=-
          ${inventory.getCountItem(bot.currentWindow?.slots, itemName, 54, 90) < minNeedCount} -=- 
-         ${moneyFT.getMoney(bot) >= (price * minMoneyCount)}`, "dev", "green", "bold")
-
+         ${(moneyFT.getMoney(bot) || -1) >= (price * minMoneyCount)}`, "dev", "green", "bold")
     }
 }
-
-
 export default  autoBuy

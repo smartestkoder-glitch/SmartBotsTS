@@ -21,6 +21,7 @@ const func = {
     },
 
     output: (msg :string, prefix :string = new Date().toLocaleTimeString(), color :Color | undefined | "" = "", shrift :Color | undefined | "" = "") => {
+        if (!prefix) prefix = new Date().toLocaleTimeString()
         let text = "[" + prefix + "]" + msg
         if (color) text = chalk[color](text)
         if (shrift) text = chalk[shrift](text)

@@ -1,3 +1,18 @@
-await new Promise(resolve => setTimeout(resolve, 1000));
+import {prisma} from "./lib/prisma";
+import dbBotsConfig from "./src/DataBase/botsConfig";
+import botsUtils from "./src/BotsUtils";
 
-throw new Error("123123")
+
+await dbBotsConfig.create({
+    username: "VsosalMomentomWW",
+    server: "mc.funtime.su",
+    version: "1.21.4",
+    proxy: "45.43.70.207:6494:xyhqvwvm:growthup",
+    settings: {
+        password: "Sasha2310",
+        anarchy: "/an310",
+        script: "autoDM"
+    }
+})
+
+

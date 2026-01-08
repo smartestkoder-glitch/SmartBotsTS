@@ -1,16 +1,68 @@
-import {prisma} from "../lib/prisma.js";
+import {prisma} from "../../lib/prisma.js";
+import {BotConfig} from "../types/botConfig.js";
+import func from "../BotsUtils/function.js";
+import restart from "../BotsUtils/restart.js";
 
 const dbBotsConfig = {
 
-    create: async (nick, server, script, settings = {}) => {
+    create: async (botConfig: BotConfig) => {
+
+
         await prisma.botsConfig.create({
             data: {
-                nick,
-                server,
-                script,
-                settings
+                nick: botConfig.username,
+                server: botConfig.server,
+                version: botConfig.version,
+
+                settings: {
+                    create: {
+                        password: botConfig.settings?.password,
+                        anarchy: botConfig.settings?.anarchy,
+                        Scripts: {
+                            connect: {
+                                name: botConfig.settings?.script || "Nothing"
+                            }
+                        },
+
+                    }
+
+                },
+
+                Proxy: {
+                    connect: {
+                        proxy: botConfig.proxy
+                    }
+                }
             }
         })
+    },
+
+    get: async (botId :number)=> {
+
+        const res = await prisma.botsConfig.findFirst({
+            where: {
+                id: botId
+            },
+            include: {
+                kicks: true,
+                bans: true,
+                deaths: true,
+                chatMessages: true,
+                DMBuys: true,
+                Proxy: true,
+                settings: {
+                    include: {
+                        Scripts: true
+                    }
+                }
+
+            }
+        })
+
+        return res
+
     }
 
 }
+
+export default dbBotsConfig

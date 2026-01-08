@@ -1,7 +1,7 @@
-import detectDonate from "../detectDonate";
-import window from "../../window";
-import restart from "../restart";
-import inventory from "../../inventory";
+import detectDonate from "../detectDonate.js";
+import window from "../../window.js";
+import restart from "../../restart.js";
+import inventory from "../../inventory.js";
 import {Bot} from "mineflayer";
 
 

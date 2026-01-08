@@ -1,5 +1,5 @@
 import {Bot} from "mineflayer";
-import restart from "./restart";
+import restart from "../restart.js";
 import {Donate} from "../../types/donate";
 
 
@@ -14,7 +14,7 @@ const detectDonate = {
             if (!don || packet?.team === 'TAB-Sidebar-4') return
 
 
-            if (!bot.smart.vars.donate) return restart.fatal()
+            if (bot.smart.vars.donate === undefined) return restart.fatal("Отсутствует донат в переменных бота!")
             bot.smart.vars.donate = don
 
         })
@@ -33,7 +33,8 @@ const detectDonate = {
             "Титан": 13,
             "Принц": 14,
             "Князь": 15,
-            "Герцог": 15
+            "Герцог": 15,
+            "": 0
         },
         newVersion: {
             "Игрок": 3,
@@ -47,7 +48,8 @@ const detectDonate = {
             "Титан": 13,
             "Принц": 14,
             "Князь": 15,
-            "Герцог": 15
+            "Герцог": 15,
+            "":0
         }
     }
 }

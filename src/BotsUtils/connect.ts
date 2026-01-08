@@ -1,100 +1,121 @@
-import { createBot } from "mineflayer"
+import {Bot, createBot} from "mineflayer"
 import func from "./function.js"
-import restart from "./FuntimeUtils/restart"
+import restart from "./restart.js"
 import startEvent from "./startEvent.js"
 
 import {SocksClient as socks} from "socks";
 import {SocksClientEstablishedEvent} from "socks/typings/common/constants";
 
-
 import type { Client } from "minecraft-protocol";
 
 import {BotConfig} from "../types/botConfig";
+import translator from "./translator";
 
 
 async function connect(config :BotConfig) {
 
-
-
-
-    if (!config.username) {
-        func.output("Произошла поытка запустить бота без username!", "", "red", "bold")
-        return restart.fatal()
-    }
-
-    if (!config.version) {
-        func.output("Произошла поытка запустить бота без version!", "", "red", "bold")
-        return restart.fatal()
-    }
-
-    if (!config.server) {
-        func.output("Произошла поытка запустить бота без server!", "", "red", "bold")
-        return restart.fatal()
-    }
-
-    let connect
-
     func.output("Бот с ником " + config.username + " пытается подключается к серверу...", undefined, "white", "bold")
-    if (config.proxy) {
-        const proxyOpt = config.proxy.split(":");
 
-        if (proxyOpt.length !== 4 || isNaN(Number(proxyOpt[1]))) {
-            func.output("Неверно передан параметр прокси!", "", "red", "bold")
-            return restart.fatal()
-        }
+    const connect = await connectToProxy(config.proxy, config.server)
 
-        connect = async (client :Client) => {
-            func.output('Попытка подключения к прокси...', undefined, "white", "bold");
+    let bot = createSmartBot(config, connect)
 
-            await socks.createConnection({
-                proxy: {
-                    host: proxyOpt[0],
-                    port: Number(proxyOpt[1]),
-                    type: 5,
-                    userId: proxyOpt[2],
-                    password: proxyOpt[3]
-                },
-                command: 'connect',
-                destination: {
-                    host: config.server || "localhost",
-                    port: config.port || 25565
-                },
-            }, (err :Error | null, info?:SocksClientEstablishedEvent | undefined) => {
-                if (err || !info) {
-                    func.output("Ошибка подключения к прокси!", undefined, "red", "bold");
-                    return;
-                }
-                func.output('Соединение с прокси установлено.', undefined, "white", "bold");
-                client.setSocket(info.socket);
-                client.emit('connect');
-            });
-        };
+    addSmartFields(bot, config)
+
+    startEvent.base(bot)
+    startEvent.savesEvent(bot)
+
+    func.output("Бот с ником " + config.username + " успешно подключен к серверу", undefined, "white", "bold")
+
+    bot.once("spawn", () => {
+        func.output("Выполнение скрипта начато у бота с ником " + config.username + "\n\n", undefined, "white", "bold")
+
+        if (config.settings?.script) startEvent.allScripts(bot, config.settings.script).catch((e) => {restart.default(bot, e)})
+    })
 
 
+    return bot
+}
+
+
+function checkProxy(proxy :string) {
+    if (!proxy) {
+        return restart.fatal("Прокси обязателен для запуска бота!")
     }
-    let bot = createBot({
-        host: config.server,
-        port: config.port,
+
+    const splitProxy = proxy.split(":");
+
+    if (splitProxy.length !== 4) {
+        return restart.fatal("Неверно переданы параметры прокси!")
+    }
+
+    if (isNaN(Number(splitProxy[1]))) {
+        return restart.fatal("Неверно переден параметры прокси!")
+    }
+}
+
+function splitServer (server :string) {
+    const splitSrv = server.split(":");
+
+    if (splitSrv.length > 2) restart.fatal("Неверно передан параметр сервера!")
+
+    if (splitSrv.length === 1) return [splitSrv[0], 25565]
+    return [splitSrv[0], splitSrv[1]]
+}
+
+async function connectToProxy(proxy :string, server :string) {
+    checkProxy(proxy);
+
+    const [hostServer, portServer] = splitServer(server);
+    const [hostProxy, portProxy, userProxy, passProxy] = proxy.split(":");
+
+
+    return async (client :Client) => {
+        func.output('Попытка подключения к прокси...', "", "white", "bold");
+
+        await socks.createConnection({
+            proxy: {
+                host: hostProxy,
+                port: Number(portProxy),
+                type: 5,
+                userId: userProxy,
+                password: passProxy
+            },
+            command: 'connect',
+            destination: {
+                host: hostServer.toString(),
+                port: Number(portServer)
+            },
+        }, (err :Error | null, info?:SocksClientEstablishedEvent | undefined) => {
+            if (err || !info) {
+                func.output("Ошибка подключения к прокси!", "", "red", "bold");
+                return;
+            }
+            func.output('Соединение с прокси установлено.', "", "white", "bold");
+            client.setSocket(info.socket);
+            client.emit('connect');
+        });
+    };
+}
+
+function createSmartBot (config :BotConfig, connect :any) {
+    const [host, port] = splitServer(config.server)
+    return createBot({
+        host: host.toString(),
+        port: Number(port),
         username: config.username,
         version: config.version,
         connect: connect,
         hideErrors: true
     });
+}
 
+function addSmartFields (bot : Bot, config :BotConfig) {
     bot.smart = {
         vars: {
             work: true,
 
-            settings: {
-                username: config.username,
-                server: config.server,
-                password: config.password,
-                version: config.version,
-                port: config.port,
-                proxy: config.proxy,
-                anarchy: config.anarchy,
-                script: config.script,
-            },
+            config: config,
 
             donate: "",
 
@@ -106,7 +127,8 @@ async function connect(config :BotConfig) {
             money: {
                 balance: 0,
                 clan: 0,
-                allTime: 0
+                allTime: 0,
+                autoClan: false
             },
 
             default: {
@@ -143,27 +165,6 @@ async function connect(config :BotConfig) {
             }
         }
     }
-
-    //Спец вызовы, потом перенести!!!
-
-    //!!!
-
-    func.output("Бот с ником " + config.username + " успешно подключен к серверу", undefined, "white", "bold")
-
-    bot.once("spawn", () => {
-        func.output("Выполнение скрипта начато у бота с ником " + config.username + "\n\n", undefined, "white", "bold")
-
-        if (config.script) startEvent.allScripts(bot, config.script).catch((e) => {restart.default(bot, e)})
-    })
-
-
-    return bot
 }
-
-
-
-
-
-
 
 export default connect;

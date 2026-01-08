@@ -1,6 +1,6 @@
 import {Bot} from "mineflayer";
 
-export default {
+const event = {
 
     spawn: (bot :Bot, func : () => void | Promise<void>) => {
         bot.on("spawn", func);
@@ -91,3 +91,4 @@ export default {
         bot.on("soundEffectHeard", func);
     }
 }
+export default event

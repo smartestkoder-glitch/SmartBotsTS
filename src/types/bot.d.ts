@@ -2,6 +2,8 @@
 import 'mineflayer';
 import {createBot} from "mineflayer";
 import {Donate} from "./donate";
+import {Sharp} from "sharp";
+import {BotConfig} from "./botConfig";
 
 declare module 'mineflayer' {
     interface Bot {
@@ -12,16 +14,7 @@ declare module 'mineflayer' {
             vars: {
                 work: boolean,
 
-                settings: {
-                    username :string,
-                    server :string,
-                    password :string | undefined,
-                    version :string,
-                    port :number | undefined,
-                    proxy :string | undefined,
-                    anarchy :string | undefined,
-                    script :string | undefined,
-                },
+                config: BotConfig,
 
                 donate: Donate,
 
@@ -33,7 +26,8 @@ declare module 'mineflayer' {
                 money?: {
                     balance?: number,
                     clan?: number,
-                    allTime?: number
+                    allTime?: number,
+                    autoClan?: boolean
                 },
 
                 default?: {
