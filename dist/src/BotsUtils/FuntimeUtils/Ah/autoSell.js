@@ -85,22 +85,22 @@ const autoSell = {
     },
     updateBoughtCountItem: (bot, count) => {
         if (bot.smart?.vars?.script?.autoSell?.boughtCountItem === undefined)
-            return restart.fatal("Отсутствует кол-во купленных предметов(countboughtitem) в переменных бота!");
+            return restart.default(bot, "Отсутствует кол-во купленных предметов(countboughtitem) в переменных бота!");
         bot.smart.vars.script.autoSell.boughtCountItem = count;
     },
     updateNeedToBuy: (bot, need = true) => {
         if (bot.smart?.vars?.script?.autoSell?.needToBuy === undefined)
-            return restart.fatal("Отсутствует needtobuy переменных бота!");
+            return restart.default(bot, "Отсутствует needtobuy переменных бота!");
         bot.smart.vars.script.autoSell.needToBuy = need;
     },
     updateDateResell: (bot) => {
         if (bot.smart?.vars?.script?.autoSell?.lastResell === undefined)
-            return restart.fatal("Отсутствует lastresell в переменных бота!");
+            return restart.default(bot, "Отсутствует lastresell в переменных бота!");
         bot.smart.vars.script.autoSell.lastResell = new Date().getTime();
     },
     getLastResellTime: (bot) => {
         if (bot.smart?.vars?.script?.autoSell?.lastResell === undefined)
-            return restart.fatal("Отсутствует lastresell в переменных бота!");
+            return restart.default(bot, "Отсутствует lastresell в переменных бота!");
         return bot.smart.vars.script.autoSell.lastResell;
     },
     /**

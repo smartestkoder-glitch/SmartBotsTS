@@ -1,6 +1,7 @@
 import connect from "./connect.js";
 import dbBotsConfig from "../DataBase/botsConfig.js";
 import restart from "./restart.js";
+import func from "./function";
 async function connectFromDB(botId) {
     try {
         const botCfg = await dbBotsConfig.get(botId);
@@ -22,7 +23,9 @@ async function connectFromDB(botId) {
     }
     catch (e) {
         console.log(e);
-        restart.defaultNoBot("Произошла ошибка при поиске бота!");
+        func.output("Произошла ошибка при поиске бота!", "", "red", "bold");
+        await func.delay(30000);
+        connectFromDB(botId);
     }
 }
 export default connectFromDB;

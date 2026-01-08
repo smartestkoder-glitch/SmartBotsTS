@@ -6,6 +6,7 @@ import func from "./function.js";
 import autoJump from "./FuntimeUtils/autoJump.js";
 import autoDM from "./FuntimeUtils/DM/autoDM.js";
 import saveEvents from "./saveEvents.js";
+import restart from "./restart";
 const startEvent = {
     /**
      *
@@ -26,6 +27,8 @@ const startEvent = {
             }
         }*/
         if (mode === "autoDM") {
+            if (bot.smart.vars.money?.autoClan !== undefined)
+                bot.smart.vars.money.autoClan = true;
             await restartAnarchy.restartIfHub(bot);
             await func.delay(2000);
             autoJump.autoJump(bot, 60000, true);
@@ -43,10 +46,10 @@ const startEvent = {
         detectDonate.startDetect(bot);
         autoAuth.autoLogin(bot);
         autoAuth.solver(bot);
-        //bot.on("end", async () => {
-        //    await func.delay(1000)
-        //    process.exit(0)
-        //})
+        bot.on("end", async () => {
+            await func.delay(1000);
+            restart.restartBot(bot);
+        });
     }
 };
 export default startEvent;

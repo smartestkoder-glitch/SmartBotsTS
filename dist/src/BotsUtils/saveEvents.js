@@ -7,10 +7,8 @@ const saveEvents = {
      */
     chat: async (bot) => {
         bot.on("message", async (mes) => {
-            console.log("Пришло соо!цфкепукгкенра");
             const mesClean = mes?.extra?.map((el) => el?.text)?.join("");
             await saveEvents.saveChatMessage(bot, mesClean, mes);
-            console.log("Записал");
         });
     },
     saveChatMessage: async (bot, cleanMessage, jsonMessage) => {

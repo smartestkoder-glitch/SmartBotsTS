@@ -33,7 +33,7 @@ function checkProxy(proxy) {
 function splitServer(server) {
     const splitSrv = server.split(":");
     if (splitSrv.length > 2)
-        return restart.fatal("Неверно передан параметр сервера!");
+        restart.fatal("Неверно передан параметр сервера!");
     if (splitSrv.length === 1)
         return [splitSrv[0], 25565];
     return [splitSrv[0], splitSrv[1]];
@@ -92,7 +92,8 @@ function addSmartFields(bot, config) {
             money: {
                 balance: 0,
                 clan: 0,
-                allTime: 0
+                allTime: 0,
+                autoClan: false
             },
             default: {
                 clickerAttack: false,
