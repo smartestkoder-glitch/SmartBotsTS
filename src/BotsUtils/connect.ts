@@ -1,4 +1,6 @@
-import {Bot, createBot} from "mineflayer"
+import {Bot} from "mineflayer"
+import mineflayer from "mineflayer"
+
 import func from "./function.js"
 import restart from "./restart.js"
 import startEvent from "./startEvent.js"
@@ -99,7 +101,7 @@ async function connectToProxy(proxy :string, server :string) {
 
 function createSmartBot (config :BotConfig, connect :any) {
     const [host, port] = splitServer(config.server)
-    return createBot({
+    return mineflayer.createBot({
         host: host.toString(),
         port: Number(port),
         username: config.username,

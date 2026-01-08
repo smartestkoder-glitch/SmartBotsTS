@@ -21,7 +21,7 @@
     "dotenv": "^17.2.3",
     "flayercaptcha": "^1.0.6",
     "minecraft-protocol": "^1.62.0",
-    "mineflayer": "^4.32.0",
+    "mineflayer": "^4.33.0",
     "node-machine-id": "^1.1.12",
     "pg": "^8.16.3",
     "pm2": "^6.0.14",
