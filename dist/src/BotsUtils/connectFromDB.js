@@ -1,7 +1,7 @@
 import connect from "./connect.js";
 import dbBotsConfig from "../DataBase/botsConfig.js";
 import restart from "./restart.js";
-import func from "./function";
+import func from "./function.js";
 async function connectFromDB(botId) {
     try {
         const botCfg = await dbBotsConfig.get(botId);

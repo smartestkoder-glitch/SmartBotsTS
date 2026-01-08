@@ -6,7 +6,7 @@ import func from "./function.js";
 import autoJump from "./FuntimeUtils/autoJump.js";
 import autoDM from "./FuntimeUtils/DM/autoDM.js";
 import saveEvents from "./saveEvents.js";
-import restart from "./restart";
+import restart from "./restart.js";
 const startEvent = {
     /**
      *
