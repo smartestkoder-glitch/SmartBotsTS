@@ -15,8 +15,9 @@ const autoDM = {
      */
     waitLoadAllSlots: async (bot :Bot, maxTime :number = 1000) => {
         let time = 0
-        const dec = parseDM.decoderText(bot)
+        let dec = parseDM.decoderText(bot)
         while (dec.data.length !== 45) {
+            dec = parseDM.decoderText(bot)
             await func.delay(30)
             time += 30
             if (time > maxTime) {

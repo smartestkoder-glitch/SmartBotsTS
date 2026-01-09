@@ -167,7 +167,7 @@ model Scripts {
 model DMBuys {
   id         Int        @id @default(autoincrement())
   dealer     String?
-  price      Int?
+  price      BigInt?
   course     Int?
   name       String?
   success    Boolean?
@@ -191,7 +191,7 @@ model AutoDMPages {
 model AutoDMSlots {
   id          Int     @id @default(autoincrement())
   name        String
-  price       Int
+  price       BigInt
   course      Int
   marketPrice Int
   purpose     String?

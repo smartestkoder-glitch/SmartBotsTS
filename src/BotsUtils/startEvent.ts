@@ -11,6 +11,7 @@ import saveEvents from "./saveEvents.js";
 import restart from "./restart.js";
 import autoClanInvest from "./FuntimeUtils/autoClanInvest.js";
 import translator from "./translator";
+import antiAFK from "./FuntimeUtils/antiAFK";
 
 
 
@@ -37,11 +38,13 @@ const startEvent = {
         }*/
         if (mode === "autoDM") {
 
-
+            //if(bot.smart.vars.default?.autoJump !== undefined) bot.smart.vars.default.autoJump = true
             if (bot.smart.vars.money?.autoClan !== undefined) bot.smart.vars.money.autoClan = true
             await restartAnarchy.restartIfHub(bot)
             await func.delay(2000)
             autoJump.autoJump(bot, 60000, true)
+
+            //setInterval(antiAFK.randomLook, 60000, bot)
             await autoDM.openDM(bot)
 
             await autoDM.autoDMChecker(bot, 1500000)

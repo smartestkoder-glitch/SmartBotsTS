@@ -5,11 +5,11 @@ import {Bot} from "mineflayer";
 const autoJump = {
 
     autoJump: async (bot :Bot, kd :number, status :boolean) => {
-        if (!bot.smart.vars.default?.autoJump) return
+        if (bot.smart.vars.default?.autoJump === undefined) return
 
         if (bot.smart.vars.default.autoJump && status === false) bot.smart.vars.default.autoJump = false
         else if (!bot.smart.vars.default.autoJump && status === true) bot.smart.vars.default.autoJump = true
-        else return
+        else return func.output("Не получилось включить модуль AutoJump!")
         while (bot.smart.vars.default.autoJump && bot.smart.vars.work) {
             move.just.jump.start(bot)
             await func.delay(300)
