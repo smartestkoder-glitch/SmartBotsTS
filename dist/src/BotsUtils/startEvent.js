@@ -35,7 +35,7 @@ const startEvent = {
             autoJump.autoJump(bot, 60000, true);
             //setInterval(antiAFK.randomLook, 60000, bot)
             await autoDM.openDM(bot);
-            await autoDM.autoDMChecker(bot, 1500000);
+            await autoDM.autoDMChecker(bot, 2000000);
         }
     },
     savesEvent: (bot) => {

@@ -7,6 +7,8 @@ import autoBuy from "./autoBuy.js";
 import antiAFK from "../antiAFK.js";
 import event from "../../event.js";
 import ahUtils from "./ahUtils";
+import dbAutoSellSells from "../../../DataBase/AutoSellSells";
+import getBotId from "../../MinUtils/getBotId";
 const autoSell = {
     /**
      *
@@ -61,6 +63,8 @@ const autoSell = {
         func.output(`Бот начинает перевыставлять предметы`, "dev", "green", "bold");
         const date = new Date();
         const lastResellTime = autoSell.getLastResellTime(bot);
+        if (typeof lastResellTime !== "number")
+            return func.output("Бот не обновил аукцион, так как хуйня с таймером!");
         if (date.getTime() - lastResellTime < 1000 * 60) {
             func.output(`Бот не обновил аукцион, так как время еще не пришло!`, "dev", "yellow", "bold");
             return;
@@ -127,7 +131,10 @@ const autoSell = {
     addSellDataHandler: (bot) => {
         event.message(bot, (mes) => {
             const mesClean = mes?.extra?.map((el) => el?.text)?.join("");
-            //if (mesClean?.startsWith("[☃] У Вас купили")) autoSell.addSellAtBase(mesClean)
+            if (mesClean?.startsWith("[☃] У Вас купили")) {
+                const price = Number(mesClean.match(/\$[0-9,]+/)?.[0].replace(/\D/g, ""));
+                dbAutoSellSells.create(getBotId(bot), mesClean, 0, "", price);
+            }
         });
     },
     /*addSellAtBase: async (message :string) => {
